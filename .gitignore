@@ -1,2 +1,29 @@
+# claude-setup 툴킷
 /github_bot.json
 __pycache__/
+
+# Android / Gradle
+*.iml
+.gradle/
+/local.properties
+/build/
+/app/build/
+/captures/
+.externalNativeBuild/
+.cxx/
+
+# Android Studio
+/.idea/caches/
+/.idea/libraries/
+/.idea/modules.xml
+/.idea/workspace.xml
+/.idea/navEditor.xml
+/.idea/assetWizardSettings.xml
+/.idea/deploymentTargetDropDown.xml
+/.idea/deploymentTargetSelector.xml
+/.idea/deviceManager.xml
+.DS_Store
+
+# 서명 키 (절대 커밋 금지)
+*.jks
+*.keystore
