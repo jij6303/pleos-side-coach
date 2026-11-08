@@ -21,7 +21,7 @@ pleos-side-coach/
 │       ├── data/vehicle/   # VehicleDataSource 인터페이스 + Pleos SDK·AAOS·Fake 구현
 │       ├── domain/         # DrivingSnapshot, DrivingStateRepository (순수 Kotlin)
 │       ├── di/             # ServiceLocator (수동 DI, Fake/Real 전환)
-│       └── ui/             # MainActivity, 신호 디버그 화면, 테마
+│       └── ui/             # MainActivity, 대시보드(dashboard/), 테마(theme/)
 ├── gradle/                 # Version Catalog(libs.versions.toml), Gradle wrapper
 ├── settings.gradle.kts     # 모듈·저장소 설정 (Pleos Nexus 포함)
 ├── build.gradle.kts        # 루트 빌드 설정
@@ -45,7 +45,9 @@ pleos-side-coach/
 | claude-setup 배포 (#1) | 작업 규칙·GitHub 봇·개발 일지 템플릿 추가 | ✅ 완료 |
 | Android 프로젝트 뼈대 (#3) | Android Studio 기본 Compose 프로젝트 추가 | ✅ 완료 |
 | 차량 신호 데이터 소스 (#7) | 패키지 정정, Vehicle SDK·AAOS 신호 구독, 신호 디버그 화면 | ✅ 완료 |
-| 디텍터·코칭 중재 (#9) | 깜빡이 누락·급제동 판정, 중재자, 주행 통계 | 🔄 리뷰 중 |
+| 디텍터·코칭 중재 (#9) | 깜빡이 누락·급제동 판정, 중재자, 주행 통계 | ✅ 완료 |
+| 앱 이름 변경 (#11) | 옆자리 쌤 → 초보운전탈출 | ✅ 완료 |
+| 대시보드 UI (#13) | 코칭 카드·차량 상태·주행 통계 타일, 앱 전용 테마 | 🔄 리뷰 중 |
 
 ---
 
@@ -146,6 +148,26 @@ pleos-side-coach/
 > 에러: 오른쪽 깜빡이를 켜고 차선을 바꿨는데 누락 경고
 > 원인: 콘솔 슬라이더 부호가 SDK와 반대라 실제로는 왼쪽 차선 변경으로 입력됨
 > 해결: 로직은 정상. 콘솔에서는 반대 부호로 조작하도록 테스트 절차와 문서에 기록
+
+---
+
+### #13 — 대시보드 UI 개선 (2026-11-09)
+
+**왜 이 작업을 했나**
+> 신호 확인 화면이 디버그용 목록이라 투박하고, 차량 화면(160dpi, 앱 창 약 1680×1210dp)에서 글자가 너무 작았기 때문
+
+**뭘 했나**
+> 앱 전용 테마(파랑 기본 + 신호 색: 깜빡이 주황·급제동 빨강·칭찬 초록, 라이트·다크)와 차량용 글자 크기를 만들고, 화면을 코칭 카드 + 차량 상태 타일(차속, PRND, 깜빡이 화살표, 조향 막대, 브레이크·주차 브레이크·비상등) + 주행 통계 타일로 재구성
+
+**어떤 구조를 선택했고 왜**
+> `ui/dashboard/`에 화면(`DashboardScreen`)과 타일 컴포넌트(`DashboardTiles`)를 분리. 너비 840dp 이상이면 2열, 미만이면 1열로 바꿔 세로·가로 창 모두 대응. 신호 색은 `LocalSignalColors`로 테마에 넣어 다크 모드에서도 의미가 같게 유지
+
+**왜 이 방법을 선택했나 (다른 방법은 없었나)**
+> Material You 동적 색상을 쓰면 배경화면에 따라 색이 바뀌어 "빨강 = 급제동" 같은 의미가 흔들려서 끔. 아이콘 라이브러리 대신 깜빡이 화살표·조향 막대를 Canvas로 직접 그려 의존성을 늘리지 않음. 애니메이션은 넣지 않음 (주행 중 금지)
+
+**배운 것 / 몰랐던 것**
+> Pleos 에뮬레이터는 160dpi라 1dp = 1px. 휴대폰 기준 글자 크기로는 차량 화면에서 너무 작음
+> `adb shell cmd uimode night yes/no`로 다크 모드를 바로 확인할 수 있음
 
 ---
 

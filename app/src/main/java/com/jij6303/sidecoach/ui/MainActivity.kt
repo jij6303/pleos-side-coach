@@ -16,7 +16,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.jij6303.sidecoach.di.ServiceLocator
-import com.jij6303.sidecoach.ui.debug.SignalDebugScreen
+import com.jij6303.sidecoach.ui.dashboard.DashboardScreen
 import com.jij6303.sidecoach.ui.theme.SideCoachTheme
 
 class MainActivity : ComponentActivity() {
@@ -50,7 +50,7 @@ class MainActivity : ComponentActivity() {
                 val lastMessage by pipeline.lastMessage.collectAsStateWithLifecycle()
                 val stats by pipeline.recorder.stats.collectAsStateWithLifecycle()
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    SignalDebugScreen(
+                    DashboardScreen(
                         snapshot = snapshot,
                         lastMessage = lastMessage,
                         stats = stats,
