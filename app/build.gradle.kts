@@ -4,13 +4,13 @@ plugins {
 }
 
 android {
-    namespace = "com.jij6303.sidecoach_temp"
+    namespace = "com.jij6303.sidecoach"
     compileSdk {
         version = release(37)
     }
 
     defaultConfig {
-        applicationId = "com.jij6303.sidecoach_temp"
+        applicationId = "com.jij6303.sidecoach"
         minSdk = 28
         targetSdk = 37
         versionCode = 1
@@ -34,6 +34,8 @@ android {
     buildFeatures {
         compose = true
     }
+    // AAOS Car API (CarPropertyManager: 기어, 차속, 비상등, 주차 브레이크)
+    useLibrary("android.car")
 }
 
 dependencies {
@@ -45,12 +47,15 @@ dependencies {
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
+    implementation(libs.androidx.lifecycle.runtime.compose)
+    implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.pleos.vehicle)
     testImplementation(libs.junit)
+    testImplementation(libs.kotlinx.coroutines.test)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(libs.androidx.junit)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
     debugImplementation(libs.androidx.compose.ui.tooling)
-    implementation("ai.pleos.playground:Vehicle:2.3.2")
 }

@@ -1,4 +1,4 @@
-package com.jij6303.sidecoach_temp
+package com.jij6303.sidecoach
 
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -19,6 +19,6 @@ class ExampleInstrumentedTest {
     fun useAppContext() {
         // Context of the app under test.
         val appContext = InstrumentationRegistry.getInstrumentation().targetContext
-        assertEquals("com.jij6303.sidecoach_temp", appContext.packageName)
+        assertEquals("com.jij6303.sidecoach", appContext.packageName)
     }
 }
