@@ -22,7 +22,7 @@ Pleos Connect Emulator v2.1.0, Vehicle SDK 2.3.2, Vehicle Service 2.3.22, 공식
 |---|---|---|
 | **조향각** | `checkSteeringWheelAngleCapabilities` → `CapabilityConfig(accessType=READ)`, `AreaBounds(minValue=-470.0, maxValue=500.0)`<br>`SteeringWheelAngleListener.onSteeringWheelAngleUpdated(Float)`<br>**왼쪽 = +, 오른쪽 = −**, 단위는 도(°) | 깜빡이 누락 판정: + 방향이면 LEFT, − 방향이면 RIGHT 깜빡이를 확인. 범위가 비대칭이라 임계값은 절댓값 기준 |
 | **깜빡이** | `checkTurnSignalStateCapabilities` → `READ`<br>`TurnSignalStateListener.onTurnSignalStateUpdated(...)` → `OFF` / `LEFT` / `RIGHT`<br>콘솔 Blink와 Flash 구분 없이 **방향만** 전달됨 | 방향 enum만 사용 |
-| **비상등** | 비상등을 켜면 TurnSignal이 **`OFF`로 보고됨**. Vehicle SDK Light 도메인(22개 기능)에 비상등 API 없음 | 비상등은 AAOS `HAZARD_LIGHTS_STATE`로 읽음 🔶(우리 앱에서 첫 테스트). **비상등이 켜져 있으면 깜빡이 누락 판정을 건너뜀** |
+| **비상등** | 비상등을 켜면 TurnSignal이 **`OFF`로 보고됨**. Vehicle SDK Light 도메인(22개 기능)에 비상등 API 없음 | ~~AAOS `HAZARD_LIGHTS_STATE`로 읽음~~ → **❌ 실측(#7): 필요 권한 `CAR_EXTERIOR_LIGHTS`가 `signature\|privileged`라 서드파티 앱은 읽을 수 없음.** 비상등 감지 경로는 확인 필요. 그 전까지 깜빡이 누락 판정은 비상등 여부를 모르는 상태로 동작 |
 | **브레이크** | `checkBrakePedalStatusCapabilities` → `READ`, 숫자 범위 없음<br>`BrakePedalStatusListener.onBrakePedalStatusUpdated(Boolean)` → 0%면 `false`, 50%면 `true`<br>콘솔은 위치(%)를 보내고 SDK는 "derived pressed status"(눌림 여부)만 전달 | 급제동 판정은 **차속 감속도가 주 판단**, 브레이크 `true`는 보조 조건. 페달 % 기준값 삭제 |
 | **차속** | 콘솔에서 **기어 D + ACCEL 버튼 누르기**로 차속 증가, BRAKE로 감속 시뮬레이션 가능. 콘솔에 앞뒤 가속도(m/s²) 표시 | Fake 차속 주입 불필요. 앱에서는 AAOS `PERF_VEHICLE_SPEED`로 읽음 🔶(우리 앱에서 확인) |
 | **기어** | 샘플 README: "Gear is not part of this sample's catalog". 콘솔에 Gear Selection(P/R/N/D) 있음 | AAOS `GEAR_SELECTION` 사용 🔶 |
@@ -397,8 +397,8 @@ candidate(type, d, key):
 |---|---|---|
 | TURN_SIGNAL | TurnSignal이 지시한 방향(`LEFT`/`RIGHT`)으로 바뀜 | ✅ 실측 확인. MVP 데모 1순위 |
 | WIPER | Wiper 상태 변화 (콘솔 Windshield Wiper Switch로 테스트 가능) | 🔶 SDK 메서드명 확인 필요. MVP 데모 2순위 |
-| HAZARD_LIGHT | AAOS `HAZARD_LIGHTS_STATE` = ON (TurnSignal로는 확인 불가 ✅ 실측) | 🔶 우리 앱에서 첫 테스트 |
-| PARKING_BRAKE | AAOS `PARKING_BRAKE_ON` = true (텔테일 API는 비공개 ✅ 실측) | 🔶 우리 앱에서 첫 테스트 |
+| HAZARD_LIGHT | AAOS `HAZARD_LIGHTS_STATE` = ON (TurnSignal로는 확인 불가 ✅ 실측) | ❌ 서드파티 앱 권한으로 읽기 불가(#7 실측). 대체 경로 확인 전까지 보류 |
+| PARKING_BRAKE | AAOS `PARKING_BRAKE_ON` = true (텔테일 API는 비공개 ✅ 실측) | ✅ 읽기 확인(#7, `CAR_POWERTRAIN`) |
 | SEAT_BELT | `registerSeatBeltNotBuckledWarning` 경고 해제 | ❌ 에뮬레이터 콘솔에서 시뮬레이션 불가 → 실차용으로만 유지 |
 | DEFROST | HVAC 디프로스터 ON | ❓ 2차 |
 
@@ -827,7 +827,7 @@ object GleoCallbackSender {
 3. ~~BrakePedalStatus 값 형태~~ ✅ 완료 (Boolean)
 4. ~~Virtual Console 차속 변경~~ ✅ 완료 (D + ACCEL)
 5. NaviHelper Gradle 좌표와 권한 (TTS·STT·FusedLocation은 "준비 중" → Android 표준 API로 대체)
-5-1. **우리 앱 첫 테스트**: AAOS `GEAR_SELECTION`, `PERF_VEHICLE_SPEED`, `HAZARD_LIGHTS_STATE`, `PARKING_BRAKE_ON`을 읽을 수 있는지 (신호 디버그 화면)
+5-1. ~~우리 앱 첫 테스트: AAOS 프로퍼티 읽기~~ ✅ 완료(#7). `GEAR_SELECTION`·`PARKING_BRAKE_ON`은 `CAR_POWERTRAIN`(normal)으로, `PERF_VEHICLE_SPEED`는 `CAR_SPEED`(dangerous, 위치 권한 그룹) 런타임 승인 후 수신. **`HAZARD_LIGHTS_STATE`는 수신 불가**(`CAR_EXTERIOR_LIGHTS`가 signature|privileged). 남은 것: 비상등 대체 경로, 튜토리얼 HAZARD_LIGHT 미션 유지 여부
 6. TTS SDK가 오디오 포커스를 직접 잡는지, 선행 무음 옵션이 있는지
 7. `TBTInfo`, `CautionPoint`, `SpeedLimit`의 필드 구성 (상황 유형과 거리)
 8. Gleo: service 액션 Receiver 수신 여부, Callback 대상 패키지, 에뮬레이터에 Gleo가 있는지

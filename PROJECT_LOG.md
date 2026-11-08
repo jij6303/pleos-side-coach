@@ -15,7 +15,13 @@ pleos-side-coach/
 ├── .claude/rules/rules.md  # 작업 규칙 (워크플로우, Git 컨벤션, 문서화 규칙)
 ├── github/                 # GitHub App 봇 스크립트 (이슈·브랜치·PR·리뷰)
 ├── PROJECT_LOG.md          # 개발 일지
-├── app/                    # Android 앱 모듈 (Compose, 패키지 com.jij6303.sidecoach_temp)
+├── docs/                   # 기획(concept)·설계(dev-architecture)·Pleos 가이드 요약
+├── app/                    # Android 앱 모듈 (Compose, 패키지 com.jij6303.sidecoach)
+│   └── src/main/java/com/jij6303/sidecoach/
+│       ├── data/vehicle/   # VehicleDataSource 인터페이스 + Pleos SDK·AAOS·Fake 구현
+│       ├── domain/         # DrivingSnapshot, DrivingStateRepository (순수 Kotlin)
+│       ├── di/             # ServiceLocator (수동 DI, Fake/Real 전환)
+│       └── ui/             # MainActivity, 신호 디버그 화면, 테마
 ├── gradle/                 # Version Catalog(libs.versions.toml), Gradle wrapper
 ├── settings.gradle.kts     # 모듈·저장소 설정 (Pleos Nexus 포함)
 ├── build.gradle.kts        # 루트 빌드 설정
@@ -38,6 +44,7 @@ pleos-side-coach/
 |------|------|------|
 | claude-setup 배포 (#1) | 작업 규칙·GitHub 봇·개발 일지 템플릿 추가 | ✅ 완료 |
 | Android 프로젝트 뼈대 (#3) | Android Studio 기본 Compose 프로젝트 추가 | ✅ 완료 |
+| 차량 신호 데이터 소스 (#7) | 패키지 정정, Vehicle SDK·AAOS 신호 구독, 신호 디버그 화면 | 🔄 리뷰 중 |
 
 ---
 
@@ -88,6 +95,32 @@ pleos-side-coach/
 
 ---
 
+### #7 — 프로젝트 골격 및 차량 신호 데이터 소스 (2026-11-09)
+
+**왜 이 작업을 했나**
+> 코칭 판정(깜빡이 누락, 급제동)의 입력이 되는 차량 신호를 먼저 안정적으로 받아야 하고, 설계 문서의 확인 목록 5-1(AAOS 프로퍼티를 우리 앱에서 읽을 수 있는지)을 검증해야 했기 때문
+
+**뭘 했나**
+> 패키지를 고정값 `com.jij6303.sidecoach`로 정정. `VehicleDataSource` 인터페이스와 Pleos SDK(조향·깜빡이·브레이크), AAOS(기어·차속·비상등·주차 브레이크), Fake 구현을 만들고, `DrivingStateRepository`가 최신 스냅샷과 10초 이력을 유지하도록 함. 신호 디버그 화면으로 에뮬레이터에서 값 수신을 확인
+
+**어떤 구조를 선택했고 왜**
+> 데이터 소스는 cold `callbackFlow`로 만들어 collect 시작이 곧 구독, 취소가 곧 해제가 되게 함. 등록·해제 짝이 어긋날 여지가 줄어듦. 신호 모델(`VehicleSignal`)은 SDK 타입을 감싸 순수 Kotlin으로 두어 도메인을 JVM 테스트로 검증할 수 있게 함
+
+**왜 이 방법을 선택했나 (다른 방법은 없었나)**
+> SDK 시그니처는 문서 스켈레톤 대신 Gradle 캐시의 `Vehicle-2.3.2-sources.jar`와 공식 샘플 앱에서 직접 확인함. 문서에는 `initialize(onComplete, onFailed)`로 적혀 있었지만 실제로는 반환값 없는 `initialize()`이고, 연결 전 등록 요청은 SDK가 대기열로 처리함
+
+**배운 것 / 몰랐던 것**
+> `CAR_SPEED`는 dangerous 권한이고 위치 권한 그룹으로 묶여 "위치 정보 접근" 팝업이 뜸
+> `HAZARD_LIGHTS_STATE`에 필요한 `CAR_EXTERIOR_LIGHTS`는 signature|privileged라 서드파티 앱은 비상등을 읽을 수 없음 → 설계의 비상등 경로 재검토 필요
+> 에뮬레이터는 user 빌드라 `cmd car_service inject-vhal-event`를 쓸 수 없음. 값 변경 테스트는 Virtual Console로 해야 함
+
+**에러 & 해결**
+> 에러: 비상등 `registerCallback=false`
+> 원인: `CAR_EXTERIOR_LIGHTS` 권한이 signature|privileged라 승인 불가
+> 해결: 권한 선언에서 제외하고 화면에 "수신 불가: 권한 없음"으로 표시. 대체 경로는 후속 확인
+
+---
+
 ## 🐛 에러 모음
 
 | 에러 | 원인 | 해결 |
@@ -95,3 +128,4 @@ pleos-side-coach/
 | Author identity unknown | git 사용자 정보 미설정 | 레포 로컬 `git config user.name/email` 설정 |
 | 빈 레포에서 브랜치 생성 불가 | 원격에 base 브랜치(main) 없음 | main에 초기 커밋 push 후 브랜치 생성 |
 | __pycache__ 커밋됨 | .gitignore에 미등록 | .gitignore에 `__pycache__/` 추가 후 인덱스에서 제거 |
+| 비상등 registerCallback=false | CAR_EXTERIOR_LIGHTS가 signature\|privileged | 권한 선언 제외, 수신 불가로 표시 |
