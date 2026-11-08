@@ -4,8 +4,12 @@ import com.jij6303.sidecoach.data.vehicle.VehicleDataSource
 import com.jij6303.sidecoach.data.vehicle.VehicleSignal
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
@@ -18,7 +22,16 @@ class DrivingStateRepository(
     private val historyWindowMs: Long = DEFAULT_HISTORY_WINDOW_MS,
 ) {
     private val _snapshot = MutableStateFlow(DrivingSnapshot())
+    /** 최신 상태 (UI용). StateFlow라 빠르게 들어온 중간값은 합쳐질 수 있다. */
     val snapshot: StateFlow<DrivingSnapshot> = _snapshot.asStateFlow()
+
+    private val _updates = MutableSharedFlow<DrivingSnapshot>(
+        extraBufferCapacity = UPDATE_BUFFER,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST,
+    )
+
+    /** 신호가 반영될 때마다 내보내는 스냅샷 (디텍터용). 조향 패턴의 중간값을 놓치지 않기 위해 합치지 않는다. */
+    val updates: SharedFlow<DrivingSnapshot> = _updates.asSharedFlow()
 
     private val history = ArrayDeque<DrivingSnapshot>()
     private var job: Job? = null
@@ -44,6 +57,7 @@ class DrivingStateRepository(
         val next = _snapshot.value.apply(signal)
         _snapshot.value = next
         if (signal is VehicleSignal.Unavailable) return
+        _updates.tryEmit(next)
         synchronized(history) {
             history.addLast(next)
             val cutoff = next.timestampMs - historyWindowMs
@@ -54,5 +68,6 @@ class DrivingStateRepository(
     companion object {
         /** 💭 10초. 깜빡이 누락 판정의 최대 시간 창(8초) + 여유. */
         const val DEFAULT_HISTORY_WINDOW_MS = 10_000L
+        private const val UPDATE_BUFFER = 256
     }
 }

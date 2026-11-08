@@ -20,6 +20,9 @@ import com.jij6303.sidecoach.data.vehicle.GearPosition
 import com.jij6303.sidecoach.data.vehicle.SignalKind
 import com.jij6303.sidecoach.data.vehicle.TurnSignalState
 import com.jij6303.sidecoach.domain.DrivingSnapshot
+import com.jij6303.sidecoach.domain.coach.CoachMessage
+import com.jij6303.sidecoach.domain.coach.CoachType
+import com.jij6303.sidecoach.domain.trip.TripStats
 import com.jij6303.sidecoach.ui.theme.SideCoachTheme
 import java.util.Locale
 
@@ -30,6 +33,8 @@ import java.util.Locale
 @Composable
 fun SignalDebugScreen(
     snapshot: DrivingSnapshot,
+    lastMessage: CoachMessage?,
+    stats: TripStats,
     usingFake: Boolean,
     modifier: Modifier = Modifier,
 ) {
@@ -54,6 +59,17 @@ fun SignalDebugScreen(
         SignalRow("비상등", snapshot.hazardOn?.onOff(), snapshot.unavailable[SignalKind.HAZARD])
         SignalRow("브레이크", snapshot.brakePressed?.let { if (it) "밟음" else "뗌" }, snapshot.unavailable[SignalKind.BRAKE])
         SignalRow("주차 브레이크", snapshot.parkingBrakeOn?.onOff(), snapshot.unavailable[SignalKind.PARKING_BRAKE])
+
+        HorizontalDivider()
+        Text(text = "최근 코칭", style = MaterialTheme.typography.titleLarge)
+        Text(
+            text = lastMessage?.text ?: "—",
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold,
+        )
+        SignalRow("차선 변경", "${stats.laneChanges}회 (깜빡이 ${stats.signalledLaneChanges}회)", null)
+        SignalRow("깜빡이 사용률", stats.blinkerUsageRate?.let { "${Math.round(it * 100)}%" }, null)
+        SignalRow("급제동", "${stats.hardBrakes}회", null)
     }
 }
 
@@ -121,6 +137,8 @@ private fun SignalDebugScreenPreview() {
                 hazardOn = false,
                 unavailable = mapOf(SignalKind.PARKING_BRAKE to "registerCallback=false"),
             ),
+            lastMessage = CoachMessage(CoachType.BLINKER_OMISSION, "차선 바꿀 땐 깜빡이 먼저 켜요!", 0),
+            stats = TripStats(laneChanges = 4, signalledLaneChanges = 3, hardBrakes = 1),
             usingFake = false,
         )
     }
