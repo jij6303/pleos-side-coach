@@ -22,13 +22,14 @@ import com.jij6303.sidecoach.ui.theme.SideCoachTheme
 class MainActivity : ComponentActivity() {
 
     private val repository get() = ServiceLocator.drivingStateRepository
+    private val pipeline get() = ServiceLocator.coachingPipeline
 
     /** AAOS 권한 중 런타임 승인이 필요한 것이 있으면 요청하고, 결과가 오면 구독을 다시 건다. */
     private val carPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
             if (lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
-                repository.stop()
-                repository.start(ServiceLocator.appScope)
+                ServiceLocator.stopCoaching()
+                ServiceLocator.startCoaching()
             }
         }
 
@@ -46,9 +47,13 @@ class MainActivity : ComponentActivity() {
         setContent {
             SideCoachTheme {
                 val snapshot by repository.snapshot.collectAsStateWithLifecycle()
+                val lastMessage by pipeline.lastMessage.collectAsStateWithLifecycle()
+                val stats by pipeline.recorder.stats.collectAsStateWithLifecycle()
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     SignalDebugScreen(
                         snapshot = snapshot,
+                        lastMessage = lastMessage,
+                        stats = stats,
                         usingFake = ServiceLocator.useFakeVehicle,
                         modifier = Modifier.padding(innerPadding),
                     )
@@ -59,14 +64,14 @@ class MainActivity : ComponentActivity() {
         requestMissingCarPermissions()
     }
 
-    // 백그라운드에서는 신호 수집을 멈춘다. 이후 코칭 Service가 생기면 구독 주체를 Service로 옮긴다.
+    // 지금은 화면이 보일 때만 코칭한다. 코칭 Service(TTS 이슈)가 생기면 구독 주체를 Service로 옮긴다.
     override fun onStart() {
         super.onStart()
-        repository.start(ServiceLocator.appScope)
+        ServiceLocator.startCoaching()
     }
 
     override fun onStop() {
-        repository.stop()
+        ServiceLocator.stopCoaching()
         super.onStop()
     }
 
