@@ -1,7 +1,7 @@
-# 옆자리 쌤 (Pleos Side-Coach) 상세 개발 구조 문서
+# 초보운전탈출 (Pleos Side-Coach) 상세 개발 구조 문서
 
 > 대상: Android Studio + Kotlin / Pleos Connect (AAOS, Android 14) · 작성 2026-11-08
-> 근거: 「옆자리 쌤 기획서」와 Pleos Connect 개발 문서(document.pleos.ai) 조사 내용
+> 근거: 「옆자리 쌤 기획서」(현 초보운전탈출)와 Pleos Connect 개발 문서(document.pleos.ai) 조사 내용
 
 ## 0. 표기 규칙 (사실과 추측 구분)
 
