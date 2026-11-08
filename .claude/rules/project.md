@@ -1,4 +1,4 @@
-## 프로젝트: 옆자리 쌤 (Pleos Side-Coach)
+## 프로젝트: 초보운전탈출 (Pleos Side-Coach)
 
 초보운전자용 Pleos Connect(AAOS) 실시간 음성 코칭 앱. 현대차그룹 차량용 앱 공모전 출품작 (1차 마감 2026-11-15).
 
