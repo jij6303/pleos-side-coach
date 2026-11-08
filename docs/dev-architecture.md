@@ -20,7 +20,7 @@ Pleos Connect Emulator v2.1.0, Vehicle SDK 2.3.2, Vehicle Service 2.3.22, 공식
 
 | 신호 | 실측 결과 | 설계 반영 |
 |---|---|---|
-| **조향각** | `checkSteeringWheelAngleCapabilities` → `CapabilityConfig(accessType=READ)`, `AreaBounds(minValue=-470.0, maxValue=500.0)`<br>`SteeringWheelAngleListener.onSteeringWheelAngleUpdated(Float)`<br>**왼쪽 = +, 오른쪽 = −**, 단위는 도(°) | 깜빡이 누락 판정: + 방향이면 LEFT, − 방향이면 RIGHT 깜빡이를 확인. 범위가 비대칭이라 임계값은 절댓값 기준 |
+| **조향각** | `checkSteeringWheelAngleCapabilities` → `CapabilityConfig(accessType=READ)`, `AreaBounds(minValue=-470.0, maxValue=500.0)`<br>`SteeringWheelAngleListener.onSteeringWheelAngleUpdated(Float)`<br>**왼쪽 = +, 오른쪽 = −**, 단위는 도(°) | 깜빡이 누락 판정: + 방향이면 LEFT, − 방향이면 RIGHT 깜빡이를 확인. 범위가 비대칭이라 임계값은 절댓값 기준<br>**⚠️ 실측(#9): Virtual Console 슬라이더 값은 SDK 값과 부호가 반대** (콘솔 −20 → SDK +20). 콘솔은 AAOS VHAL 규약(왼쪽 −)으로 보이며, 앱은 SDK 값 기준. 콘솔에서 −1080° 범위(±540)까지 들어옴 |
 | **깜빡이** | `checkTurnSignalStateCapabilities` → `READ`<br>`TurnSignalStateListener.onTurnSignalStateUpdated(...)` → `OFF` / `LEFT` / `RIGHT`<br>콘솔 Blink와 Flash 구분 없이 **방향만** 전달됨 | 방향 enum만 사용 |
 | **비상등** | 비상등을 켜면 TurnSignal이 **`OFF`로 보고됨**. Vehicle SDK Light 도메인(22개 기능)에 비상등 API 없음 | ~~AAOS `HAZARD_LIGHTS_STATE`로 읽음~~ → **❌ 실측(#7): 필요 권한 `CAR_EXTERIOR_LIGHTS`가 `signature\|privileged`라 서드파티 앱은 읽을 수 없음.** 비상등 감지 경로는 확인 필요. 그 전까지 깜빡이 누락 판정은 비상등 여부를 모르는 상태로 동작 |
 | **브레이크** | `checkBrakePedalStatusCapabilities` → `READ`, 숫자 범위 없음<br>`BrakePedalStatusListener.onBrakePedalStatusUpdated(Boolean)` → 0%면 `false`, 50%면 `true`<br>콘솔은 위치(%)를 보내고 SDK는 "derived pressed status"(눌림 여부)만 전달 | 급제동 판정은 **차속 감속도가 주 판단**, 브레이크 `true`는 보조 조건. 페달 % 기준값 삭제 |
