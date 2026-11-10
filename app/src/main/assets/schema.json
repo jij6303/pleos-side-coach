@@ -1,0 +1,39 @@
+{
+  "packageName": "com.jij6303.sidecoach",
+  "appDescription": "A driving coach app that gives beginner drivers real-time voice guidance based on vehicle signals and upcoming road situations.",
+  "version": "1.0",
+  "actionCalls": [
+    {
+      "type": "function",
+      "function": {
+        "component": "activity",
+        "name": "START_DRIVING_COACH",
+        "description": "Starts a real-time voice coaching session for the driver at the selected experience level.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "experienceLevel": {
+              "type": "string",
+              "description": "The driver's experience level for adjusting how often coaching is given.",
+              "enum": ["BEGINNER", "INTERMEDIATE"]
+            }
+          },
+          "required": []
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "component": "activity",
+        "name": "RUN_VEHICLE_TUTORIAL",
+        "description": "Opens an interactive tutorial that teaches the driver how to use the turn signals and brake while the vehicle is parked.",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        }
+      }
+    }
+  ]
+}

@@ -36,6 +36,7 @@ import com.jij6303.sidecoach.voice.VoiceOutput
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
@@ -72,6 +73,10 @@ object ServiceLocator {
     lateinit var uiMode: StateFlow<UiMode>
         private set
 
+    /** [uiMode]의 원본(cold). 구독자가 없어도 지금 값을 바로 계산해야 할 때(Gleo 명령) 쓴다. */
+    lateinit var uiModeSource: Flow<UiMode>
+        private set
+
     val fakeUx: FakeUxRestrictionSource by lazy { FakeUxRestrictionSource() }
 
     lateinit var tutorial: TutorialController
@@ -102,10 +107,11 @@ object ServiceLocator {
         }
         drivingStateRepository = DrivingStateRepository(vehicleDataSource)
         uxRestrictionSource = if (useFake) fakeUx else AaosUxRestrictionSource(context)
-        uiMode = UxModeController(
+        uiModeSource = UxModeController(
             ux = uxRestrictionSource.state,
             gear = drivingStateRepository.snapshot.map { it.gear },
-        ).mode.stateIn(appScope, SharingStarted.WhileSubscribed(5_000), UiMode.DRIVING_VOICE)
+        ).mode
+        uiMode = uiModeSource.stateIn(appScope, SharingStarted.WhileSubscribed(5_000), UiMode.DRIVING_VOICE)
         // 메시지 시각과 같은 시계: 실제 소스는 elapsedRealtime, Fake는 currentTimeMillis
         val clock: () -> Long = if (useFake) System::currentTimeMillis else SystemClock::elapsedRealtime
         naviEventSource = FakeRouteNaviEventSource(drivingStateRepository.updates, clock)
