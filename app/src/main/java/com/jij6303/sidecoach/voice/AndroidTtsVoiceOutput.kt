@@ -2,6 +2,8 @@ package com.jij6303.sidecoach.voice
 
 import android.content.Context
 import android.content.Intent
+import android.os.Handler
+import android.os.Looper
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
 import android.util.Log
@@ -33,7 +35,12 @@ class AndroidTtsVoiceOutput(
 
     private val appContext = context.applicationContext
 
-    @Volatile private var tts: TextToSpeech = TextToSpeech(appContext) { status -> onInit(status, fallback = true) }
+    private val mainHandler = Handler(Looper.getMainLooper())
+
+    // 엔진 연결에 실패하면 onInit이 TextToSpeech 생성자 안에서 바로 불린다(필드 대입 전).
+    // 그래서 onInit 처리는 항상 메인 루퍼에 한 번 미뤄서 tts 필드가 채워진 뒤에 실행한다.
+    @Volatile private var tts: TextToSpeech =
+        TextToSpeech(appContext) { status -> mainHandler.post { onInit(status, fallback = true) } }
 
     private fun onInit(status: Int, fallback: Boolean) {
         if (status != TextToSpeech.SUCCESS) {
@@ -41,7 +48,7 @@ class AndroidTtsVoiceOutput(
             Log.w(TAG, "init failed status=$status, retry engine=$engine")
             if (engine != null) {
                 tts.shutdown()
-                tts = TextToSpeech(appContext, { onInit(it, fallback = false) }, engine)
+                tts = TextToSpeech(appContext, { mainHandler.post { onInit(it, fallback = false) } }, engine)
             }
             return
         }

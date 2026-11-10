@@ -3,6 +3,7 @@ package com.jij6303.sidecoach.di
 import android.content.Context
 import android.os.SystemClock
 import android.util.Log
+import com.jij6303.sidecoach.R
 import com.jij6303.sidecoach.data.vehicle.AaosPropertyDataSource
 import com.jij6303.sidecoach.data.vehicle.CompositeVehicleDataSource
 import com.jij6303.sidecoach.data.vehicle.FakeVehicleDataSource
@@ -11,11 +12,13 @@ import com.jij6303.sidecoach.data.vehicle.VehicleDataSource
 import com.jij6303.sidecoach.domain.DrivingStateRepository
 import com.jij6303.sidecoach.domain.coach.CoachingArbiter
 import com.jij6303.sidecoach.domain.coach.CoachingPipeline
+import com.jij6303.sidecoach.domain.coach.MessageCatalog
 import com.jij6303.sidecoach.domain.detect.BlinkerOmissionDetector
 import com.jij6303.sidecoach.domain.detect.HardBrakeDetector
 import com.jij6303.sidecoach.domain.trip.TripRecorder
 import com.jij6303.sidecoach.voice.AndroidTtsVoiceOutput
 import com.jij6303.sidecoach.voice.AudioFocusController
+import com.jij6303.sidecoach.voice.ClipVoiceOutput
 import com.jij6303.sidecoach.voice.NoAudioFocus
 import com.jij6303.sidecoach.voice.VoiceCoach
 import com.jij6303.sidecoach.voice.VoiceOutput
@@ -76,7 +79,16 @@ object ServiceLocator {
         appScope.launch {
             coachingPipeline.messages.collect { Log.i("Coach", "${it.type}: ${it.text}") }
         }
-        voiceOutput = AndroidTtsVoiceOutput(context)
+        // 정해진 문구는 녹음 클립, 그 외는 Android TTS (Pleos 에뮬레이터에 표준 TTS 엔진 없음)
+        voiceOutput = ClipVoiceOutput(
+            context = context,
+            clips = mapOf(
+                MessageCatalog.blinkerOmission() to R.raw.coach_blinker_omission,
+                MessageCatalog.hardBrake() to R.raw.coach_hard_brake,
+                MessageCatalog.praise() to R.raw.coach_praise,
+            ),
+            fallback = AndroidTtsVoiceOutput(context),
+        )
         voiceCoach = VoiceCoach(
             output = voiceOutput,
             focus = if (requestAudioFocus) AudioFocusController(context) else NoAudioFocus,
