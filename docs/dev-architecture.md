@@ -29,6 +29,7 @@ Pleos Connect Emulator v2.1.0, Vehicle SDK 2.3.2, Vehicle Service 2.3.22, 공식
 | **경고등(Telltales)** | 샘플 앱 Safety 도메인(18개 기능)에 **없음**. 샘플은 private·hidden API를 제외하므로 공개 API가 아닌 것으로 판단. 콘솔에는 Telltales(Parking Brake, Seat Belt 등)가 있지만 계기판 **경고등 표시**를 바꾸는 기능임 | 텔테일 API는 사용하지 않음. 주차 브레이크는 AAOS `PARKING_BRAKE_ON` 🔶 |
 | **안전벨트** | `checkSeatBuckledCapabilities` → `READ_WRITE` + SeatArea 목록. 단, **읽기 API 없음("No read API")**. `Seat Belt Not Buckled Warning` 기능은 존재. **콘솔에 벨트 체결 시뮬레이션 항목 없음**(belt·buckle 검색 결과 없음) | 에뮬레이터 데모에서는 벨트 미션 제외. 실차용으로 `registerSeatBeltNotBuckledWarning` 경로를 유지 |
 | **와이퍼** | 콘솔에 Windshield Wiper Switch(Front/Rear, Off/Auto/Low/High), SDK에 Wiper 도메인(2개 기능) | 튜토리얼 미션으로 채택(SDK 메서드명 확인 필요) |
+| **TTS 엔진** | 실측(#15): 표준 Android TTS 엔진이 **없음**. `TTS_SERVICE`를 가진 서비스는 Pleos 자체 `ai.pleos.playground.caas/.service.speech.SpeechService` 하나뿐인데, intent-filter에 `CATEGORY_DEFAULT`가 없어 프레임워크 엔진 조회에 안 잡히고(`TextToSpeech` init `status=-1`), 패키지를 직접 지정해도 연결 실패. `tts_default_synth`도 비어 있음 | 정해진 코칭 문구는 **녹음 클립(res/raw)** 을 `MediaPlayer`로 재생(`ClipVoiceOutput`), 클립 없는 문구만 Android TTS로 fallback. Pleos TTS SDK가 나오면 교체 |
 | **시스템 UI** | 깜빡이를 켜면 **시스템 측후방 카메라 팝업**이 앱 화면 위에 뜸 | 주행 중 화면이 가려질 수 있음 → 음성 중심 코칭 설계를 유지 |
 
 ### SDK 제공 상태 (Pleos Playground, 2026-11-09)
@@ -468,7 +469,7 @@ val req = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_D
 
 ### 6.2 TTS 정책
 
-- **⚠️ 2026-11-09 기준 Pleos TTS SDK는 "준비 중"이라 신청이 불가하다.** 그래서 MVP의 `VoiceOutput` 기본 구현은 **Android 표준 `android.speech.tts.TextToSpeech`**(`AndroidTtsVoiceOutput`)로 한다. 선행 무음은 표준 API의 `playSilentUtterance(150ms)` 🔶로 넣는다. Pleos TTS가 제공되면 `PleosTtsVoiceOutput`으로 교체한다. 인터페이스가 분리돼 있어서 코칭 로직은 바뀌지 않는다.
+- **⚠️ 2026-11-09 기준 Pleos TTS SDK는 "준비 중"이라 신청이 불가하다.** 그래서 MVP의 `VoiceOutput` 기본 구현은 **Android 표준 `android.speech.tts.TextToSpeech`**(`AndroidTtsVoiceOutput`)로 한다. **단, 실측(#15) 결과 에뮬레이터에 표준 TTS 엔진이 없어서 정해진 문구는 녹음 클립(`ClipVoiceOutput`, 클립 없으면 `AndroidTtsVoiceOutput`으로 fallback)으로 재생한다.** 클립 재생은 포커스를 얻은 뒤 150ms 쉬고 시작해 선행 무음을 대신한다. 클립은 `scripts/generate_voice_clips.ps1`로 만들며, 현재 파일은 개발용 임시 음성(Windows Heami)이라 제출 전 라이선스가 확인된 음성으로 교체해야 한다. Android 11+에서는 매니페스트에 `TTS_SERVICE` `<queries>`가 있어야 엔진을 볼 수 있다. 선행 무음은 표준 API의 `playSilentUtterance(150ms)` 🔶로 넣는다. Pleos TTS가 제공되면 `PleosTtsVoiceOutput`으로 교체한다. 인터페이스가 분리돼 있어서 코칭 로직은 바뀌지 않는다.
 - Pleos TTS를 쓰게 되면 **모드는 `Mode.ON_DEVICE`를 쓴다**(✅). 네트워크가 필요 없고 앱 등록도 필요 없다. 주행 중 통신이 불안정해도 동작한다.
 - **선행 무음 150~200ms** ✅ 가이드
   - ❓ Pleos TTS SDK가 직접 재생하는 구조라면 PCM 앞에 무음을 덧붙이는 방식을 쓸 수 없을 수 있다. SDK에 무음 옵션이 있는지 확인해야 한다.
