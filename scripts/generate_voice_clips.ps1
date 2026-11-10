@@ -3,6 +3,9 @@
 # 제출 전에는 라이선스가 확인된 음성(직접 녹음 등)으로 같은 파일명에 교체한다.
 #
 # 실행: powershell -ExecutionPolicy Bypass -File scripts/generate_voice_clips.ps1
+#       이미 있는 파일은 건너뛴다. 문구를 바꿔 다시 만들려면 -Force
+
+param([switch]$Force)
 
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Speech
@@ -31,6 +34,25 @@ $clips = [ordered]@{
     'report_great'           = '오늘 운전 아주 잘했어요. 성적표를 확인해 보세요.'
     'report_good'            = '오늘 운전 잘했어요. 성적표에서 연습할 점을 확인해 보세요.'
     'report_practice'        = '수고했어요. 성적표에서 다음 연습 과제를 확인해 보세요.'
+    # 주차 코치 (domain/parking/ParkingPhrases와 같아야 함)
+    'parking_reverse_start' = '후진 주차를 시작해요. 천천히 뒤로 가다가 뒷바퀴가 주차칸 첫 선에 오면 멈춰요.'
+    'parking_parallel_start' = '평행 주차를 시작해요. 천천히 뒤로 가다가 뒷바퀴가 앞차 뒤범퍼에 오면 멈춰요.'
+    'parking_full_lock' = '핸들을 주차칸 쪽으로 끝까지 돌려요.'
+    'parking_full_lock_opposite' = '핸들을 반대쪽으로 끝까지 돌려요.'
+    'parking_center' = '핸들을 가운데로 풀어요.'
+    'parking_reverse_until_aligned' = '좋아요. 천천히 뒤로 가다가 차가 주차칸과 나란해지면 멈춰요.'
+    'parking_reverse_finish' = '좋아요. 똑바로 뒤로 가다가 칸 끝에서 멈추고 P에 놓아요.'
+    'parking_parallel_until_45' = '좋아요. 천천히 뒤로 가다가 차가 45도쯤 꺾이면 멈춰요.'
+    'parking_parallel_until_passed' = '좋아요. 똑바로 뒤로 가다가 앞 범퍼가 앞차 뒤범퍼를 지나면 멈춰요.'
+    'parking_parallel_until_aligned' = '좋아요. 천천히 뒤로 가다가 차가 나란해지면 멈춰요.'
+    'parking_parallel_finish' = '좋아요. 바퀴가 똑바로예요. P에 놓아 주차를 마쳐요.'
+    'parking_not_enough_lock' = '아직 덜 돌렸어요. 끝까지 돌려요.'
+    'parking_not_centered' = '바퀴가 덜 풀렸어요. 조금 더 풀어요.'
+    'parking_wrong_direction' = '반대쪽이에요. 핸들을 반대로 돌려요.'
+    'parking_too_fast' = '천천히요. 브레이크를 살짝 밟아요.'
+    'parking_done' = '주차 끝! 잘했어요.'
+    'parking_cancelled' = '주차 코치를 마칠게요.'
+    'parking_retry' = '앞으로 빼서 다시 해도 괜찮아요. R에 놓으면 처음부터 안내할게요.'
 }
 
 $synth = New-Object System.Speech.Synthesis.SpeechSynthesizer
@@ -40,6 +62,7 @@ $format = New-Object System.Speech.AudioFormat.SpeechAudioFormatInfo(22050, [Sys
 
 foreach ($name in $clips.Keys) {
     $path = Join-Path $outDir "$name.wav"
+    if ((Test-Path $path) -and -not $Force) { continue }
     $synth.SetOutputToWaveFile($path, $format)
     $synth.Speak($clips[$name])
     $synth.SetOutputToNull()

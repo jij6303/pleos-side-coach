@@ -22,6 +22,7 @@ import com.jij6303.sidecoach.domain.DrivingSnapshot
 import com.jij6303.sidecoach.domain.coach.CoachMessage
 import com.jij6303.sidecoach.domain.coach.CoachType
 import com.jij6303.sidecoach.domain.coach.MessageCatalog
+import com.jij6303.sidecoach.domain.parking.ParkingUi
 import com.jij6303.sidecoach.ui.dashboard.Chip
 import com.jij6303.sidecoach.ui.theme.SideCoachTheme
 import kotlin.math.roundToInt
@@ -31,13 +32,17 @@ private const val MESSAGE_VISIBLE_MS = 10_000L
 
 /**
  * 주행 규제 중 화면 (dev-architecture 5.2 DRIVING_VOICE).
- * 큰 글자 코칭 카드 1장 + 차속·기어 한 줄. 애니메이션·스크롤·입력 없음. 코칭은 음성이 주이고 화면은 보조.
+ * 큰 글자 코칭 카드 1장 + 차속·기어 한 줄. 애니메이션·스크롤 없음. 코칭은 음성이 주이고 화면은 보조.
+ * 주차 코치 중([parking])에는 코칭 카드 대신 주차 카드를 보여준다. 입력은 주차 카드의 "다음" 버튼 하나뿐.
  */
 @Composable
 fun DrivingScreen(
     snapshot: DrivingSnapshot,
     lastMessage: CoachMessage?,
     modifier: Modifier = Modifier,
+    parking: ParkingUi? = null,
+    parkingMessage: CoachMessage? = null,
+    onParkingNext: () -> Unit = {},
 ) {
     // 메시지 시각과 스냅샷 시각은 같은 시계(elapsedRealtime)라 별도 타이머 없이 비교할 수 있다
     val message = lastMessage?.takeIf { snapshot.timestampMs - it.createdAtMs in 0..MESSAGE_VISIBLE_MS }
@@ -48,6 +53,7 @@ fun DrivingScreen(
         CoachType.PRAISE -> signal.praise to "칭찬"
         CoachType.PREVIEW -> signal.neutral to "곧 만나요"
         CoachType.REPORT -> signal.praise to "성적표"
+        CoachType.PARKING -> signal.neutral to "주차 코치"
         CoachType.TIP -> signal.neutral to "도움말"
         null -> signal.neutral to "코칭 중"
     }
@@ -59,7 +65,16 @@ fun DrivingScreen(
             .padding(32.dp),
         verticalArrangement = Arrangement.spacedBy(24.dp),
     ) {
-        Surface(
+        if (parking != null) {
+            ParkingPanel(
+                parking = parking,
+                snapshot = snapshot,
+                // 멈춤 안내는 틱에서 나와 스냅샷보다 늦을 수 있으므로 아래쪽 경계는 두지 않는다
+                message = parkingMessage?.takeIf { snapshot.timestampMs - it.createdAtMs <= MESSAGE_VISIBLE_MS },
+                onNext = onParkingNext,
+                modifier = Modifier.fillMaxWidth().weight(1f),
+            )
+        } else Surface(
             modifier = Modifier.fillMaxWidth().weight(1f),
             shape = RoundedCornerShape(32.dp),
             color = tone.container,

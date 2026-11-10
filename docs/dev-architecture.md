@@ -32,7 +32,8 @@ Pleos Connect Emulator v2.1.0, Vehicle SDK 2.3.2, Vehicle Service 2.3.22, 공식
 | **TTS 엔진** | 실측(#15): 표준 Android TTS 엔진이 **없음**. `TTS_SERVICE`를 가진 서비스는 Pleos 자체 `ai.pleos.playground.caas/.service.speech.SpeechService` 하나뿐인데, intent-filter에 `CATEGORY_DEFAULT`가 없어 프레임워크 엔진 조회에 안 잡히고(`TextToSpeech` init `status=-1`), 패키지를 직접 지정해도 연결 실패. `tts_default_synth`도 비어 있음 | 정해진 코칭 문구는 **녹음 클립(res/raw)** 을 `MediaPlayer`로 재생(`ClipVoiceOutput`), 클립 없는 문구만 Android TTS로 fallback. Pleos TTS SDK가 나오면 교체 |
 | **주행 규제** | 실측(#17): 문서의 `cmd hmg_car_service ... driving_regulation` 명령은 **이 에뮬레이터에 없음**(`Can't find service`). 규제는 콘솔 기어로 바뀜: P → parked(DO 불필요, `0x0`), 그 외 기어 → idling/moving(DO 필요, `0x50` = NO_VIDEO \| NO_SETUP). `dumpsys car_service --services CarUxRestrictionsManagerService`로 상태별 설정 확인 가능 | T8은 콘솔 기어 P↔D로 테스트. 에뮬레이터에서는 IDLE_LIMITED(규제 없음 + P 아님)가 나오지 않음 |
 | **Foreground Service** | 실측(#17): `specialUse` 타입 FGS 시작·유지 확인(`types=40000000`). Back으로 앱을 숨긴 상태에서도 급제동 음성 코칭 정상 | 코칭 수명은 `CoachingService`가 관리 |
-| **시스템 UI** | 깜빡이를 켜면 **시스템 측후방 카메라 팝업**이 앱 화면 위에 뜸. 실측(#27): `ai.umos.car.evs` 창, 좌·우 모두 앱 창 기준 왼쪽 위 (0,0)~(754,424)dp, 깜빡이를 끄면 사라짐 (앱 창은 1682×1210dp, 160dpi) | 주행 중 화면이 가려질 수 있음 → 음성 중심 코칭 설계를 유지. 튜토리얼은 깜빡이가 켜져 있는 동안 미션 카드를 팝업 아래로 내림(#27) |
+| **시스템 UI** | 깜빡이를 켜면 **시스템 측후방 카메라 팝업**이 앱 화면 위에 뜸. 실측(#27): `ai.umos.car.evs` 창, 좌·우 모두 앱 창 기준 왼쪽 위 (0,0)~(754,424)dp, 깜빡이를 끄면 사라짐 (앱 창은 1682×1210dp, 160dpi) | 주행 중 화면이 가려질 수 있음 → 음성 중심 코칭 설계를 유지. 튜토리얼은 깜빡이가 켜져 있는 동안 미션 카드를 팝업 아래로 내림(#27)<br>**실측(#37): 기어 R이면 `ai.umos.car.evs/.CarEvsCameraPreviewActivity`가 앱 창 전체를 덮고 포커스를 가져감**(에뮬레이터는 빈 화면) → 주차 코치는 화면 입력 없이 음성·차량 신호만으로 진행 |
+| **R 기어 신호** | 실측(#37): 콘솔 R + ACCEL로 차속이 오름(양수, 1km/h 단위). BRAKE 버튼은 누르는 동안만 `BrakePedalStatus=true`, 멈춘 뒤 떼면 `false`. 콘솔 차는 정지 후 브레이크 없이 0을 유지 | 기준점 판정은 브레이크 없이 "움직인 뒤 정지"로. 후진 중에는 급제동 판정 안 함 |
 
 ### SDK 제공 상태 (Pleos Playground, 2026-11-09)
 | SDK | 상태 | 의미 | 대응 |
@@ -409,6 +410,27 @@ candidate(type, d, key):
 | DEFROST | HVAC 디프로스터 ON | ❓ 2차 |
 
 - 화면 진입 시 `check*Capabilities`로 지원 여부를 확인하고, **지원되지 않는 미션은 목록에서 숨긴다.**
+
+### 4.7 주차 절차 코치 (ParkingCoachEngine, #37)
+
+```
+시작: type != null && 직전 기어 ∈ {D, N} && 기어 == R        // P → R(주차칸에서 빼기)은 제외
+단계(후진 주차): 기준점 → 끝까지 → 기준점 → 가운데 → 멈추고 P
+단계(평행 주차): 기준점 → 끝까지 → 기준점 → 가운데 → 기준점 → 반대쪽 끝까지 → 기준점 → 가운데 → P
+
+REFERENCE (기준점): |speed| > 1.5 를 한 번 본 뒤 |speed| < 1 이 0.8 s 유지되면 다음   // 💭
+FULL_LOCK:          |steering| >= 420 → 다음, 그 방향을 lockSign으로 기억              // 💭 실측 범위 -470~500
+FULL_LOCK_OPPOSITE: sign == lockSign && |steering| >= 60 → "반대쪽이에요"
+CENTER:             |steering| <= 20 → 다음
+덜 돌림·덜 풀림:     핸들 변화 <= 5° 가 2.5 s 이어지면 안내, 재안내 6 s                 // 💭 0.5 s 틱으로 판정
+과속:               |speed| > 7 km/h → "천천히요" (간격 8 s, 단계 안내 후 6 s 동안은 말하지 않음)
+종료:               P → 마지막 단계면 "주차 끝", 아니면 "마칠게요" / D → "다시 해도 괜찮아요"(다음 R에서 처음부터)
+```
+
+- 화면은 보조다. R에서는 후방카메라 화면이 앱을 덮으므로(0.1 실측) 버튼 없이 진행되게 설계했다. 앱이 보이면 주차 카드(단계, 조향 게이지, "다음" 버튼)가 뜨고, 조향 신호가 없으면 핸들 단계도 버튼으로 넘긴다.
+- 모든 문구는 녹음 클립(`res/raw/parking_*.wav`). 방향(왼쪽·오른쪽)은 말하지 않고 "주차칸 쪽", "반대쪽"으로 말해 클립 하나로 양쪽을 처리한다.
+- 유형(후진·평행·끄기)은 대시보드에서 고르고 SharedPreferences에 저장한다.
+- 주차 진행 상태는 저장·복원하지 않는다(#31 범위 밖). 프로세스가 다시 만들어지면 다음 D → R에서 처음부터.
 
 ---
 
@@ -798,6 +820,7 @@ object GleoCallbackSender {
 | T13 | 프로세스 재생성 | `adb shell am kill com.sidecoach` (백그라운드 상태) | Service 재시작 후 세션 복원 |
 | T14 | 폼 팩터 | FormFactorConsole로 portrait와 landscape 전환. **실측(#33)**: 앱 창 오른쪽 끝 "⋮" 손잡이로 창 1개(841×1210dp)↔2개(1682×1210dp) 전환 가능 | 잘림·겹침 없음 (#33에서 1200dp 기준 1열/2열로 수정·확인) |
 | T15 | Gleo service 액션 | `am broadcast EXPLAIN_…` | 상황 설명 음성, callback `silent` 전송 |
+| T16 | 주차 코치 (#37) | 콘솔 P → D → R, ACCEL 짧게 → BRAKE 정지, 조향 −200(3초) → −450, 다시 후진·정지, 조향 0, P | 1/5 시작 → 끝까지 → 덜 돌렸어요 → 2단계 기준점 → 가운데로 → 5/5 → "주차 끝". 급제동 오탐 없음 (✅ #37 실측) |
 
 - 도메인 단위 테스트(JVM): 디텍터와 중재자는 **시계열 스크립트**(CSV: ts, speed, steering, signal, brake)를 넣어서 판정 결과를 검증한다.
 

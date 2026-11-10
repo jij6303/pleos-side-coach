@@ -14,6 +14,9 @@ enum class CoachType(val priority: Int, val high: Boolean) {
     /** 주행 종료 후 성적표 요약. 중재자를 거치지 않는다. */
     REPORT(priority = 0, high = false),
 
+    /** 주차 절차 코치(#37). 주차 중에는 다른 코칭이 거의 없어 중재자를 거치지 않는다. */
+    PARKING(priority = 0, high = false),
+
     /** 차량 기능 도움말 음성. 중재자를 거치지 않는다. */
     TIP(priority = 0, high = false),
 }

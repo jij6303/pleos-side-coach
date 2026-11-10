@@ -1,5 +1,6 @@
 package com.jij6303.sidecoach.domain.detect
 
+import com.jij6303.sidecoach.data.vehicle.GearPosition
 import com.jij6303.sidecoach.domain.DrivingSnapshot
 
 /**
@@ -8,6 +9,7 @@ import com.jij6303.sidecoach.domain.DrivingSnapshot
  * 브레이크는 Boolean만 오므로(실측) 차속 감속도가 주 판정이고, 브레이크 눌림은 보조 조건이다.
  * 저속 제외 조건은 현재 속도가 아니라 **감속 시작 속도**에 적용한다. 현재 속도로 걸면 정지까지 가는
  * 급제동(예: 45 → 0 km/h)이 잡히지 않는다.
+ * 후진(R) 중에는 판정하지 않는다. 주차 중 정지는 주차 코치가 맡는다(#37 실측: 콘솔 후진 후 정지에서 오탐).
  */
 class HardBrakeDetector(private val config: Config = Config()) : Detector {
 
@@ -32,6 +34,10 @@ class HardBrakeDetector(private val config: Config = Config()) : Detector {
         val now = s.timestampMs
         if (s.brakePressed == true) lastBrakePressedMs = now
 
+        if (s.gear == GearPosition.REVERSE) {
+            samples.clear()
+            return null
+        }
         val speed = s.speedKmh ?: return null
         if (samples.isEmpty() || samples.last().ts != now || samples.last().kmh != speed) {
             samples.addLast(Sample(now, speed))
