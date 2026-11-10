@@ -16,6 +16,7 @@ import com.jij6303.sidecoach.domain.DrivingStateRepository
 import com.jij6303.sidecoach.domain.coach.CoachingArbiter
 import com.jij6303.sidecoach.domain.coach.CoachingPipeline
 import com.jij6303.sidecoach.domain.coach.MessageCatalog
+import com.jij6303.sidecoach.domain.report.Grade
 import com.jij6303.sidecoach.domain.detect.BlinkerOmissionDetector
 import com.jij6303.sidecoach.domain.detect.HardBrakeDetector
 import com.jij6303.sidecoach.domain.trip.TripRecorder
@@ -109,6 +110,9 @@ object ServiceLocator {
                 MessageCatalog.blinkerOmission() to R.raw.coach_blinker_omission,
                 MessageCatalog.hardBrake() to R.raw.coach_hard_brake,
                 MessageCatalog.praise() to R.raw.coach_praise,
+                MessageCatalog.report(Grade.GREAT) to R.raw.report_great,
+                MessageCatalog.report(Grade.GOOD) to R.raw.report_good,
+                MessageCatalog.report(Grade.PRACTICE) to R.raw.report_practice,
             ),
             fallback = AndroidTtsVoiceOutput(context),
         )
