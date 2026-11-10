@@ -15,6 +15,9 @@ $clips = [ordered]@{
     'coach_blinker_omission' = '차선 바꿀 땐 깜빡이 먼저 켜요!'
     'coach_hard_brake'       = '조금 더 일찍, 부드럽게 밟아볼까요?'
     'coach_praise'           = '깜빡이 아주 잘 켜고 있어요. 좋아요!'
+    'report_great'           = '오늘 운전 아주 잘했어요. 성적표를 확인해 보세요.'
+    'report_good'            = '오늘 운전 잘했어요. 성적표에서 연습할 점을 확인해 보세요.'
+    'report_practice'        = '수고했어요. 성적표에서 다음 연습 과제를 확인해 보세요.'
 }
 
 $synth = New-Object System.Speech.Synthesis.SpeechSynthesizer

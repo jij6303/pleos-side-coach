@@ -19,12 +19,12 @@ pleos-side-coach/
 ├── app/                    # Android 앱 모듈 (Compose, 패키지 com.jij6303.sidecoach)
 │   └── src/main/java/com/jij6303/sidecoach/
 │       ├── data/vehicle/   # VehicleDataSource 인터페이스 + Pleos SDK·AAOS·Fake 구현
-│       ├── domain/         # DrivingSnapshot, DrivingStateRepository (순수 Kotlin)
+│       ├── domain/         # DrivingSnapshot, DrivingStateRepository, 디텍터·중재자·주행(trip/)·성적표(report/) (순수 Kotlin)
 │       ├── di/             # ServiceLocator (수동 DI, Fake/Real 전환)
 │       ├── data/ux/        # UxRestrictionSource (CarUxRestrictions + Fake)
 │       ├── service/        # CoachingService (Foreground Service)
 │       ├── voice/          # VoiceOutput(클립·Android TTS), AudioFocusController, VoiceCoach
-│       └── ui/             # MainActivity, UxModeController, 대시보드(dashboard/), 주행 화면(driving/), 테마(theme/)
+│       └── ui/             # MainActivity, UxModeController, 대시보드(dashboard/), 주행 화면(driving/), 성적표(report/), 테마(theme/)
 ├── scripts/                # 음성 클립 생성 스크립트
 ├── gradle/                 # Version Catalog(libs.versions.toml), Gradle wrapper
 ├── settings.gradle.kts     # 모듈·저장소 설정 (Pleos Nexus 포함)
@@ -53,7 +53,8 @@ pleos-side-coach/
 | 앱 이름 변경 (#11) | 옆자리 쌤 → 초보운전탈출 | ✅ 완료 |
 | 대시보드 UI (#13) | 코칭 카드·차량 상태·주행 통계 타일, 앱 전용 테마 | ✅ 완료 |
 | 음성 코칭 출력 (#15) | 오디오 포커스, 녹음 클립 + Android TTS fallback | ✅ 완료 |
-| 코칭 서비스·주행 화면 (#17) | Foreground Service, 주행 규제별 화면 전환, 주행 화면 | 🔄 리뷰 중 |
+| 코칭 서비스·주행 화면 (#17) | Foreground Service, 주행 규제별 화면 전환, 주행 화면 | ✅ 완료 |
+| 성적표 (#19) | 주행 단위 판정, 점수·등급·다음 연습 과제, 성적표 화면·요약 음성 | 🔄 리뷰 중 |
 
 ---
 
@@ -225,6 +226,31 @@ pleos-side-coach/
 
 ---
 
+### #19 — 주행 후 성적표와 다음 연습 과제 (2026-11-10)
+
+**왜 이 작업을 했나**
+> 주행 중 코칭만으로는 초보가 무엇을 연습해야 할지 남지 않음. 주행이 끝나면 결과와 다음 과제 하나를 보여줘야 "선생님" 경험이 완성됨 (concept ⑤)
+
+**뭘 했나**
+> `TripSession`(기어로 주행 시작·종료 판정, 주행 시간·거리·최고 속도), `ReportGenerator`(점수·등급·원포인트 과제), `ReportScreen`(P단에서만 표시, "확인"·Back으로 닫기), 성적표 요약 음성 클립 3개. 새 주행이 시작되면 통계·발화 횟수·성적표 초기화. 단위 테스트 12개 추가
+
+**어떤 구조를 선택했고 왜**
+> 주행 판정은 기존 파이프라인의 스냅샷 흐름에 얹어 별도 구독을 만들지 않음. 성적표 요약 음성은 주행이 끝난 뒤라 다른 코칭과 겹치지 않으므로 중재자를 거치지 않고 바로 음성으로 보냄. Back은 성적표가 떠 있을 때만 켜지는 콜백을 따로 두어, 최상단 Back(moveTaskToBack) 규칙과 하위 화면 Back(닫기) 규칙을 분리
+
+**왜 이 방법을 선택했나 (다른 방법은 없었나)**
+> 점수는 감점 방식(누락·급제동 1회당 −10)으로 단순하게 둠. 초보에게 "왜 이 점수인지"가 바로 보이도록 하기 위함. 원포인트 과제는 여러 개 대신 가장 급한 하나만 제안 (깜빡이 > 급제동 > 차선 변경 연습 > 칭찬)
+
+**배운 것 / 몰랐던 것**
+> 차속 이벤트는 값이 바뀔 때만 오므로 정속 주행 중에는 이벤트 간격이 길다. 처음에 "간격 5초 상한"을 두었다가 정속 주행 거리가 깎이는 문제를 테스트로 발견해 제거함
+> PowerShell 스크립트를 Python으로 고칠 때 `utf-8`로 읽고 `utf-8-sig`로 쓰면 BOM이 두 번 붙어 첫 줄이 깨짐
+
+**에러 & 해결**
+> 에러: TripSessionTest에서 주행 시간 10초 기대, 실제 5초
+> 원인: 이벤트 간격 상한(5초)이 정상 정속 구간까지 잘라냄
+> 해결: 상한 제거. 서비스가 멈추면 주행도 초기화되므로 긴 공백이 생길 일이 없음
+
+---
+
 ## 🐛 에러 모음
 
 | 에러 | 원인 | 해결 |
@@ -237,3 +263,5 @@ pleos-side-coach/
 | TextToSpeech init status=-1 | 에뮬레이터에 표준 TTS 엔진 없음 (Pleos 서비스는 CATEGORY_DEFAULT 없음) | 녹음 클립 재생 + TTS fallback |
 | 앱 시작 직후 NPE (TextToSpeech) | 연결 실패 시 init 콜백이 생성자 안에서 동기 호출 | 콜백 처리를 메인 루퍼에 post |
 | `cmd hmg_car_service` 없음 | 에뮬레이터에 해당 서비스 없음 | 콘솔 기어로 주행 규제 전환 |
+| 주행 시간이 절반으로 집계 | 이벤트 간격 상한이 정속 구간을 잘라냄 | 상한 제거 |
+| ps1 첫 줄 주석이 명령으로 실행됨 | BOM이 두 번 붙음 | BOM 하나로 정리 |

@@ -84,6 +84,7 @@ fun CoachingCard(message: CoachMessage?, modifier: Modifier = Modifier) {
         CoachType.PRAISE -> signal.praise to "칭찬"
         CoachType.SPEEDING -> signal.brake to "과속"
         CoachType.PREVIEW -> signal.neutral to "상황 예고"
+        CoachType.REPORT -> signal.praise to "성적표"
         null -> signal.neutral to "코칭 대기"
     }
     Surface(modifier = modifier, shape = TileShape, color = tone.container) {

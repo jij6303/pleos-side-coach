@@ -20,6 +20,7 @@ import com.jij6303.sidecoach.di.ServiceLocator
 import com.jij6303.sidecoach.service.CoachingService
 import com.jij6303.sidecoach.ui.dashboard.DashboardScreen
 import com.jij6303.sidecoach.ui.driving.DrivingScreen
+import com.jij6303.sidecoach.ui.report.ReportScreen
 import com.jij6303.sidecoach.ui.theme.SideCoachTheme
 
 class MainActivity : ComponentActivity() {
@@ -46,6 +47,13 @@ class MainActivity : ComponentActivity() {
                 moveTaskToBack(true)
             }
         })
+        // 하위 화면(성적표)이 떠 있으면 Back은 그 화면만 닫는다. 나중에 등록한 콜백이 먼저 불린다.
+        val closeReport = object : OnBackPressedCallback(false) {
+            override fun handleOnBackPressed() {
+                pipeline.dismissReport()
+            }
+        }
+        onBackPressedDispatcher.addCallback(this, closeReport)
 
         setContent {
             SideCoachTheme {
@@ -53,6 +61,10 @@ class MainActivity : ComponentActivity() {
                 val lastMessage by pipeline.lastMessage.collectAsStateWithLifecycle()
                 val stats by pipeline.recorder.stats.collectAsStateWithLifecycle()
                 val uiMode by ServiceLocator.uiMode.collectAsStateWithLifecycle()
+                val report by pipeline.lastReport.collectAsStateWithLifecycle()
+                // 성적표는 정차(P단, 규제 없음)일 때만 보여준다 (dev-architecture 5.2)
+                val shownReport = report?.takeIf { uiMode == UiMode.PARKED_FULL }
+                closeReport.isEnabled = shownReport != null
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     // 화면 전환에 애니메이션을 넣지 않는다 (주행 중 애니메이션 금지)
                     when (uiMode) {
@@ -61,7 +73,12 @@ class MainActivity : ComponentActivity() {
                             lastMessage = lastMessage,
                             modifier = Modifier.padding(innerPadding),
                         )
-                        // 성적표·튜토리얼 화면이 생기기 전까지는 정차 화면 둘 다 대시보드
+                        UiMode.PARKED_FULL if shownReport != null -> ReportScreen(
+                            report = shownReport,
+                            onClose = pipeline::dismissReport,
+                            modifier = Modifier.padding(innerPadding),
+                        )
+                        // 튜토리얼 화면이 생기기 전까지는 정차 화면은 대시보드
                         UiMode.IDLE_LIMITED, UiMode.PARKED_FULL -> DashboardScreen(
                             snapshot = snapshot,
                             lastMessage = lastMessage,

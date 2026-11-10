@@ -7,7 +7,10 @@ import com.jij6303.sidecoach.domain.detect.BlinkerOmissionDetector
 import com.jij6303.sidecoach.domain.detect.HardBrakeDetector
 import com.jij6303.sidecoach.domain.trip.TripRecorder
 import kotlinx.coroutines.flow.emptyFlow
+import com.jij6303.sidecoach.domain.report.Grade
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Test
 
 class CoachingPipelineTest {
@@ -57,5 +60,28 @@ class CoachingPipelineTest {
         val m = pipeline.process(DrivingSnapshot(timestampMs = 1_000, speedKmh = 30f, brakePressed = true))
         assertEquals(CoachType.HARD_BRAKE, m?.type)
         assertEquals(1, pipeline.recorder.stats.value.hardBrakes)
+    }
+
+    @Test
+    fun `T9 P단에 들어가면 이번 주행 성적표를 만들고, 새 주행이 시작되면 초기화`() {
+        pipeline.process(DrivingSnapshot(timestampMs = 0, speedKmh = 0f, gear = GearPosition.PARK))
+        pipeline.process(DrivingSnapshot(timestampMs = 1_000, speedKmh = 60f, gear = GearPosition.DRIVE, brakePressed = true))
+        pipeline.process(DrivingSnapshot(timestampMs = 11_000, speedKmh = 60f, gear = GearPosition.DRIVE, brakePressed = true))
+        pipeline.process(DrivingSnapshot(timestampMs = 12_000, speedKmh = 30f, gear = GearPosition.DRIVE, brakePressed = true))
+        pipeline.process(DrivingSnapshot(timestampMs = 14_000, speedKmh = 0f, gear = GearPosition.DRIVE))
+        assertNull(pipeline.lastReport.value)
+
+        pipeline.process(DrivingSnapshot(timestampMs = 15_000, speedKmh = 0f, gear = GearPosition.PARK))
+        val report = pipeline.lastReport.value
+        assertNotNull(report)
+        assertEquals(1, report!!.stats.hardBrakes)
+        assertEquals(90, report.score)
+        assertEquals(Grade.GREAT, report.grade)
+        assertEquals(60f, report.metrics.maxSpeedKmh, 0f)
+
+        // 다시 D: 새 주행 → 성적표·통계 초기화
+        pipeline.process(DrivingSnapshot(timestampMs = 20_000, speedKmh = 0f, gear = GearPosition.DRIVE))
+        assertNull(pipeline.lastReport.value)
+        assertEquals(0, pipeline.recorder.stats.value.hardBrakes)
     }
 }
