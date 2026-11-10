@@ -1,6 +1,7 @@
 package com.jij6303.sidecoach.ui
 
 import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
@@ -16,7 +17,9 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.jij6303.sidecoach.di.ServiceLocator
+import com.jij6303.sidecoach.service.CoachingService
 import com.jij6303.sidecoach.ui.dashboard.DashboardScreen
+import com.jij6303.sidecoach.ui.driving.DrivingScreen
 import com.jij6303.sidecoach.ui.theme.SideCoachTheme
 
 class MainActivity : ComponentActivity() {
@@ -24,10 +27,10 @@ class MainActivity : ComponentActivity() {
     private val repository get() = ServiceLocator.drivingStateRepository
     private val pipeline get() = ServiceLocator.coachingPipeline
 
-    /** AAOS 권한 중 런타임 승인이 필요한 것이 있으면 요청하고, 결과가 오면 구독을 다시 건다. */
+    /** 런타임 승인이 필요한 권한을 요청하고, 결과가 오면 차량 신호 구독을 다시 건다. */
     private val carPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
-            if (lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
+            if (lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED) && ServiceLocator.isCoaching) {
                 ServiceLocator.stopCoaching()
                 ServiceLocator.startCoaching()
             }
@@ -49,14 +52,24 @@ class MainActivity : ComponentActivity() {
                 val snapshot by repository.snapshot.collectAsStateWithLifecycle()
                 val lastMessage by pipeline.lastMessage.collectAsStateWithLifecycle()
                 val stats by pipeline.recorder.stats.collectAsStateWithLifecycle()
+                val uiMode by ServiceLocator.uiMode.collectAsStateWithLifecycle()
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    DashboardScreen(
-                        snapshot = snapshot,
-                        lastMessage = lastMessage,
-                        stats = stats,
-                        usingFake = ServiceLocator.useFakeVehicle,
-                        modifier = Modifier.padding(innerPadding),
-                    )
+                    // 화면 전환에 애니메이션을 넣지 않는다 (주행 중 애니메이션 금지)
+                    when (uiMode) {
+                        UiMode.DRIVING_VOICE -> DrivingScreen(
+                            snapshot = snapshot,
+                            lastMessage = lastMessage,
+                            modifier = Modifier.padding(innerPadding),
+                        )
+                        // 성적표·튜토리얼 화면이 생기기 전까지는 정차 화면 둘 다 대시보드
+                        UiMode.IDLE_LIMITED, UiMode.PARKED_FULL -> DashboardScreen(
+                            snapshot = snapshot,
+                            lastMessage = lastMessage,
+                            stats = stats,
+                            usingFake = ServiceLocator.useFakeVehicle,
+                            modifier = Modifier.padding(innerPadding),
+                        )
+                    }
                 }
             }
         }
@@ -64,26 +77,28 @@ class MainActivity : ComponentActivity() {
         requestMissingCarPermissions()
     }
 
-    // 지금은 화면이 보일 때만 코칭한다. 코칭 Service(TTS 이슈)가 생기면 구독 주체를 Service로 옮긴다.
+    // 코칭은 CoachingService가 맡는다. 화면이 보일 때 시작만 하고, 숨겨져도 멈추지 않는다.
+    // 끄는 것은 알림의 "코칭 끄기" 버튼.
     override fun onStart() {
         super.onStart()
-        ServiceLocator.startCoaching()
-    }
-
-    override fun onStop() {
-        ServiceLocator.stopCoaching()
-        super.onStop()
+        CoachingService.start(this)
     }
 
     private fun requestMissingCarPermissions() {
-        val missing = CAR_RUNTIME_PERMISSIONS.filter {
+        val missing = RUNTIME_PERMISSIONS.filter {
             ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
         }
         if (missing.isNotEmpty()) carPermissionLauncher.launch(missing.toTypedArray())
     }
 
     private companion object {
-        /** CAR_SPEED는 dangerous 권한(위치 그룹)이라 런타임 승인이 필요하다. CAR_POWERTRAIN은 normal이라 자동 승인. */
-        val CAR_RUNTIME_PERMISSIONS = listOf("android.car.permission.CAR_SPEED")
+        /**
+         * CAR_SPEED는 dangerous 권한(위치 그룹)이라 런타임 승인이 필요하다. CAR_POWERTRAIN은 normal이라 자동 승인.
+         * POST_NOTIFICATIONS(13+)는 코칭 서비스 알림 표시용. 거부해도 서비스는 동작한다.
+         */
+        val RUNTIME_PERMISSIONS = buildList {
+            add("android.car.permission.CAR_SPEED")
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) add(android.Manifest.permission.POST_NOTIFICATIONS)
+        }
     }
 }

@@ -4,6 +4,9 @@ import android.content.Context
 import android.os.SystemClock
 import android.util.Log
 import com.jij6303.sidecoach.R
+import com.jij6303.sidecoach.data.ux.AaosUxRestrictionSource
+import com.jij6303.sidecoach.data.ux.FakeUxRestrictionSource
+import com.jij6303.sidecoach.data.ux.UxRestrictionSource
 import com.jij6303.sidecoach.data.vehicle.AaosPropertyDataSource
 import com.jij6303.sidecoach.data.vehicle.CompositeVehicleDataSource
 import com.jij6303.sidecoach.data.vehicle.FakeVehicleDataSource
@@ -16,6 +19,8 @@ import com.jij6303.sidecoach.domain.coach.MessageCatalog
 import com.jij6303.sidecoach.domain.detect.BlinkerOmissionDetector
 import com.jij6303.sidecoach.domain.detect.HardBrakeDetector
 import com.jij6303.sidecoach.domain.trip.TripRecorder
+import com.jij6303.sidecoach.ui.UiMode
+import com.jij6303.sidecoach.ui.UxModeController
 import com.jij6303.sidecoach.voice.AndroidTtsVoiceOutput
 import com.jij6303.sidecoach.voice.AudioFocusController
 import com.jij6303.sidecoach.voice.ClipVoiceOutput
@@ -25,6 +30,10 @@ import com.jij6303.sidecoach.voice.VoiceOutput
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 /**
@@ -44,6 +53,15 @@ object ServiceLocator {
         private set
     lateinit var coachingPipeline: CoachingPipeline
         private set
+
+    lateinit var uxRestrictionSource: UxRestrictionSource
+        private set
+
+    /** 화면 모드. 화면이 구독하는 동안만 규제를 구독한다. 첫 값이 오기 전에는 안전하게 주행 중으로 둔다. */
+    lateinit var uiMode: StateFlow<UiMode>
+        private set
+
+    val fakeUx: FakeUxRestrictionSource by lazy { FakeUxRestrictionSource() }
 
     lateinit var voiceOutput: VoiceOutput
         private set
@@ -69,6 +87,11 @@ object ServiceLocator {
             )
         }
         drivingStateRepository = DrivingStateRepository(vehicleDataSource)
+        uxRestrictionSource = if (useFake) fakeUx else AaosUxRestrictionSource(context)
+        uiMode = UxModeController(
+            ux = uxRestrictionSource.state,
+            gear = drivingStateRepository.snapshot.map { it.gear },
+        ).mode.stateIn(appScope, SharingStarted.WhileSubscribed(5_000), UiMode.DRIVING_VOICE)
         coachingPipeline = CoachingPipeline(
             updates = drivingStateRepository.updates,
             detectors = listOf(BlinkerOmissionDetector(), HardBrakeDetector()),
@@ -98,7 +121,9 @@ object ServiceLocator {
         )
     }
 
-    /** 신호 구독과 코칭 판정을 함께 시작한다. */
+    val isCoaching: Boolean get() = coachingPipeline.isRunning
+
+    /** 신호 구독과 코칭 판정을 함께 시작한다. CoachingService가 호출한다. */
     fun startCoaching() {
         drivingStateRepository.start(appScope)
         coachingPipeline.start(appScope)

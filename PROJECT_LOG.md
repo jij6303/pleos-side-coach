@@ -21,8 +21,10 @@ pleos-side-coach/
 │       ├── data/vehicle/   # VehicleDataSource 인터페이스 + Pleos SDK·AAOS·Fake 구현
 │       ├── domain/         # DrivingSnapshot, DrivingStateRepository (순수 Kotlin)
 │       ├── di/             # ServiceLocator (수동 DI, Fake/Real 전환)
+│       ├── data/ux/        # UxRestrictionSource (CarUxRestrictions + Fake)
+│       ├── service/        # CoachingService (Foreground Service)
 │       ├── voice/          # VoiceOutput(클립·Android TTS), AudioFocusController, VoiceCoach
-│       └── ui/             # MainActivity, 대시보드(dashboard/), 테마(theme/)
+│       └── ui/             # MainActivity, UxModeController, 대시보드(dashboard/), 주행 화면(driving/), 테마(theme/)
 ├── scripts/                # 음성 클립 생성 스크립트
 ├── gradle/                 # Version Catalog(libs.versions.toml), Gradle wrapper
 ├── settings.gradle.kts     # 모듈·저장소 설정 (Pleos Nexus 포함)
@@ -50,7 +52,8 @@ pleos-side-coach/
 | 디텍터·코칭 중재 (#9) | 깜빡이 누락·급제동 판정, 중재자, 주행 통계 | ✅ 완료 |
 | 앱 이름 변경 (#11) | 옆자리 쌤 → 초보운전탈출 | ✅ 완료 |
 | 대시보드 UI (#13) | 코칭 카드·차량 상태·주행 통계 타일, 앱 전용 테마 | ✅ 완료 |
-| 음성 코칭 출력 (#15) | 오디오 포커스, 녹음 클립 + Android TTS fallback | 🔄 리뷰 중 |
+| 음성 코칭 출력 (#15) | 오디오 포커스, 녹음 클립 + Android TTS fallback | ✅ 완료 |
+| 코칭 서비스·주행 화면 (#17) | Foreground Service, 주행 규제별 화면 전환, 주행 화면 | 🔄 리뷰 중 |
 
 ---
 
@@ -202,6 +205,26 @@ pleos-side-coach/
 
 ---
 
+### #17 — 코칭 포그라운드 서비스와 주행 규제별 화면 전환 (2026-11-10)
+
+**왜 이 작업을 했나**
+> 지금까지는 화면이 보일 때만 코칭했음. 최상단 Back은 앱을 숨기기만 해야 하는데(Pleos 규칙), 숨기면 코칭이 멈췄음. 또 주행 중에는 화면을 최소화해야 함
+
+**뭘 했나**
+> `CoachingService`(specialUse FGS, 알림에 "코칭 끄기", START_STICKY)가 신호 구독·판정·음성의 수명을 맡도록 옮김. `AaosUxRestrictionSource`(CarUxRestrictionsManager)와 `UxModeController`(규제 + 기어 → DRIVING_VOICE / IDLE_LIMITED / PARKED_FULL), 주행 중 화면 `DrivingScreen`(큰 코칭 카드 1장 + 차속·기어) 추가. 단위 테스트 5개 추가
+
+**어떤 구조를 선택했고 왜**
+> 화면 모드는 `ServiceLocator.uiMode`(StateFlow, WhileSubscribed)로 두어 화면이 볼 때만 규제를 구독함. 규제 정보를 못 받으면 가장 엄격한 상태(주행 중)로 취급. 주행 화면의 코칭 문구는 10초가 지나면 내림. 메시지 시각과 스냅샷 시각이 같은 시계라 타이머 없이 비교
+
+**왜 이 방법을 선택했나 (다른 방법은 없었나)**
+> FGS 타입은 위치·미디어 재생 등과 맞지 않아 설계대로 specialUse를 씀(심사 수용 여부는 확인 필요). 서비스 종료 버튼을 화면에 둘 수도 있지만, 주행 중 화면에는 입력을 최소화해야 해서 알림으로 둠
+
+**배운 것 / 몰랐던 것**
+> 문서의 주행 규제 adb 명령(`hmg_car_service`)은 이 에뮬레이터에 없음. 대신 규제가 콘솔 기어로 바뀜(P면 해제, 그 외 기어면 DO 필요)
+> `dumpsys car_service --services CarUxRestrictionsManagerService`로 주행 상태별 규제 설정과 변경 기록을 볼 수 있음
+
+---
+
 ## 🐛 에러 모음
 
 | 에러 | 원인 | 해결 |
@@ -213,3 +236,4 @@ pleos-side-coach/
 | 깜빡이를 켰는데 누락 경고 | Virtual Console 조향 부호가 SDK와 반대 | 콘솔에서는 반대 부호로 조작 (로직 정상) |
 | TextToSpeech init status=-1 | 에뮬레이터에 표준 TTS 엔진 없음 (Pleos 서비스는 CATEGORY_DEFAULT 없음) | 녹음 클립 재생 + TTS fallback |
 | 앱 시작 직후 NPE (TextToSpeech) | 연결 실패 시 init 콜백이 생성자 안에서 동기 호출 | 콜백 처리를 메인 루퍼에 post |
+| `cmd hmg_car_service` 없음 | 에뮬레이터에 해당 서비스 없음 | 콘솔 기어로 주행 규제 전환 |

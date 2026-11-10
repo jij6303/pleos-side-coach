@@ -30,6 +30,8 @@ Pleos Connect Emulator v2.1.0, Vehicle SDK 2.3.2, Vehicle Service 2.3.22, 공식
 | **안전벨트** | `checkSeatBuckledCapabilities` → `READ_WRITE` + SeatArea 목록. 단, **읽기 API 없음("No read API")**. `Seat Belt Not Buckled Warning` 기능은 존재. **콘솔에 벨트 체결 시뮬레이션 항목 없음**(belt·buckle 검색 결과 없음) | 에뮬레이터 데모에서는 벨트 미션 제외. 실차용으로 `registerSeatBeltNotBuckledWarning` 경로를 유지 |
 | **와이퍼** | 콘솔에 Windshield Wiper Switch(Front/Rear, Off/Auto/Low/High), SDK에 Wiper 도메인(2개 기능) | 튜토리얼 미션으로 채택(SDK 메서드명 확인 필요) |
 | **TTS 엔진** | 실측(#15): 표준 Android TTS 엔진이 **없음**. `TTS_SERVICE`를 가진 서비스는 Pleos 자체 `ai.pleos.playground.caas/.service.speech.SpeechService` 하나뿐인데, intent-filter에 `CATEGORY_DEFAULT`가 없어 프레임워크 엔진 조회에 안 잡히고(`TextToSpeech` init `status=-1`), 패키지를 직접 지정해도 연결 실패. `tts_default_synth`도 비어 있음 | 정해진 코칭 문구는 **녹음 클립(res/raw)** 을 `MediaPlayer`로 재생(`ClipVoiceOutput`), 클립 없는 문구만 Android TTS로 fallback. Pleos TTS SDK가 나오면 교체 |
+| **주행 규제** | 실측(#17): 문서의 `cmd hmg_car_service ... driving_regulation` 명령은 **이 에뮬레이터에 없음**(`Can't find service`). 규제는 콘솔 기어로 바뀜: P → parked(DO 불필요, `0x0`), 그 외 기어 → idling/moving(DO 필요, `0x50` = NO_VIDEO \| NO_SETUP). `dumpsys car_service --services CarUxRestrictionsManagerService`로 상태별 설정 확인 가능 | T8은 콘솔 기어 P↔D로 테스트. 에뮬레이터에서는 IDLE_LIMITED(규제 없음 + P 아님)가 나오지 않음 |
+| **Foreground Service** | 실측(#17): `specialUse` 타입 FGS 시작·유지 확인(`types=40000000`). Back으로 앱을 숨긴 상태에서도 급제동 음성 코칭 정상 | 코칭 수명은 `CoachingService`가 관리 |
 | **시스템 UI** | 깜빡이를 켜면 **시스템 측후방 카메라 팝업**이 앱 화면 위에 뜸 | 주행 중 화면이 가려질 수 있음 → 음성 중심 코칭 설계를 유지 |
 
 ### SDK 제공 상태 (Pleos Playground, 2026-11-09)
