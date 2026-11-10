@@ -35,6 +35,7 @@ import com.jij6303.sidecoach.ui.report.ReportScreen
 import com.jij6303.sidecoach.ui.tips.CarTipsScreen
 import com.jij6303.sidecoach.domain.tips.CarTip
 import kotlinx.coroutines.flow.MutableStateFlow
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import com.jij6303.sidecoach.ui.theme.SideCoachTheme
 
@@ -120,6 +121,9 @@ class MainActivity : ComponentActivity() {
                 // 성적표는 정차(P단, 규제 없음)일 때만 보여준다 (dev-architecture 5.2)
                 val shownReport = report?.takeIf { uiMode == UiMode.PARKED_FULL }
                 closeReport.isEnabled = shownReport != null
+                val parking by ServiceLocator.parking.ui.collectAsStateWithLifecycle()
+                val parkingMessage by ServiceLocator.parking.lastMessage.collectAsStateWithLifecycle()
+                val parkingType by ServiceLocator.parking.type.collectAsStateWithLifecycle()
                 val tip by openTip.collectAsStateWithLifecycle()
                 val shownTip = tip?.takeIf { uiMode == UiMode.PARKED_FULL && shownReport == null }
                 closeTips.isEnabled = shownTip != null
@@ -129,12 +133,20 @@ class MainActivity : ComponentActivity() {
                 }
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     // 화면 전환에 애니메이션을 넣지 않는다 (주행 중 애니메이션 금지)
-                    when (uiMode) {
-                        UiMode.DRIVING_VOICE -> DrivingScreen(
+                    val drivingScreen = @Composable {
+                        DrivingScreen(
                             snapshot = snapshot,
                             lastMessage = lastMessage,
                             modifier = Modifier.padding(innerPadding),
+                            parking = parking,
+                            parkingMessage = parkingMessage,
+                            onParkingNext = { ServiceLocator.parking.tapNext(ServiceLocator.appScope) },
                         )
+                    }
+                    when (uiMode) {
+                        UiMode.DRIVING_VOICE -> drivingScreen()
+                        // 주차 코치 중이면 규제가 없는 상태(IDLE_LIMITED)여도 주차 카드를 보여준다
+                        UiMode.IDLE_LIMITED if parking != null -> drivingScreen()
                         UiMode.PARKED_FULL if shownReport != null -> ReportScreen(
                             report = shownReport,
                             onClose = pipeline::dismissReport,
@@ -156,6 +168,15 @@ class MainActivity : ComponentActivity() {
                             modifier = Modifier.padding(innerPadding),
                             onOpenTips = if (uiMode == UiMode.PARKED_FULL) {
                                 { openTip.value = CarTip.entries.first() }
+                            } else {
+                                null
+                            },
+                            parkingType = parkingType,
+                            onParkingTypeChange = if (uiMode == UiMode.PARKED_FULL) {
+                                { type ->
+                                    ServiceLocator.parkingSettings.save(type)
+                                    ServiceLocator.parking.setType(ServiceLocator.appScope, type)
+                                }
                             } else {
                                 null
                             },

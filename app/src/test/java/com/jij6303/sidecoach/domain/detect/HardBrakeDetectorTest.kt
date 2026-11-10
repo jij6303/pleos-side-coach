@@ -1,5 +1,6 @@
 package com.jij6303.sidecoach.domain.detect
 
+import com.jij6303.sidecoach.data.vehicle.GearPosition
 import com.jij6303.sidecoach.domain.DrivingSnapshot
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -35,6 +36,12 @@ class HardBrakeDetectorTest {
         assertEquals(0, again.size)
         val afterCooldown = feed(snap(12_000, 60f, true), snap(13_000, 30f, true))
         assertEquals(1, afterCooldown.size)
+    }
+
+    @Test
+    fun `후진 중 정지는 급제동으로 보지 않는다 (주차 코치가 맡음)`() {
+        val r = { ts: Long, speed: Float -> DrivingSnapshot(timestampMs = ts, speedKmh = speed, brakePressed = true, gear = GearPosition.REVERSE) }
+        assertEquals(0, feed(r(0, 25f), r(1_000, 0f)).size)
     }
 
     @Test

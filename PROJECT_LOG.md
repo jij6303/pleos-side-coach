@@ -19,7 +19,7 @@ pleos-side-coach/
 ├── app/                    # Android 앱 모듈 (Compose, 패키지 com.jij6303.sidecoach)
 │   └── src/main/java/com/jij6303/sidecoach/
 │       ├── data/vehicle/   # VehicleDataSource 인터페이스 + Pleos SDK·AAOS·Fake 구현
-│       ├── domain/         # DrivingSnapshot, DrivingStateRepository, 디텍터·중재자·주행(trip/)·성적표(report/)·상황 예고(situation/)·튜토리얼(tutorial/)·도움말(tips/) (순수 Kotlin)
+│       ├── domain/         # DrivingSnapshot, DrivingStateRepository, 디텍터·중재자·주행(trip/)·성적표(report/)·상황 예고(situation/)·주차 코치(parking/)·도움말(tips/) (순수 Kotlin)
 │       ├── gleo/           # Gleo 음성 명령: 파싱·처리·응답 (schema.json은 assets/)
 │       ├── di/             # ServiceLocator (수동 DI, Fake/Real 전환)
 │       ├── data/navi/      # NaviEventSource, 시연용 가상 경로(FakeRouteNaviEventSource)
@@ -27,7 +27,7 @@ pleos-side-coach/
 │       ├── data/ux/        # UxRestrictionSource (CarUxRestrictions + Fake)
 │       ├── service/        # CoachingService (Foreground Service)
 │       ├── voice/          # VoiceOutput(클립·Android TTS), AudioFocusController, VoiceCoach
-│       └── ui/             # MainActivity, UxModeController, 대시보드(dashboard/), 주행 화면(driving/), 성적표(report/), 튜토리얼(tutorial/), 도움말(tips/), 테마(theme/)
+│       └── ui/             # MainActivity, UxModeController, 대시보드(dashboard/), 주행·주차 화면(driving/), 성적표(report/), 도움말(tips/), 테마(theme/)
 ├── scripts/                # 음성 클립 생성 스크립트
 ├── gradle/                 # Version Catalog(libs.versions.toml), Gradle wrapper
 ├── settings.gradle.kts     # 모듈·저장소 설정 (Pleos Nexus 포함)
@@ -65,7 +65,8 @@ pleos-side-coach/
 | 차량 기능 도움말 (#29) | 김 서림·내기/외기·에어컨·가속 모드·회생제동·페달 모드·차일드락 9개, 버튼 그림, Gleo 음성 답변 | ✅ 완료 |
 | 세션 저장·복원 (#31) | 프로세스가 다시 만들어져도 진행 중 주행·통계·성적표 이어가기 | ✅ 완료 |
 | 창 크기 대응 (#33) | 앱 창 1개(841dp)·2개(1682dp) 배치 점검·수정 | ✅ 완료 |
-| 튜토리얼 제거 (#35) | 내 차 익히기 화면·도메인·Gleo 액션·음성 클립 삭제 | 🔄 리뷰 중 |
+| 튜토리얼 제거 (#35) | 내 차 익히기 화면·도메인·Gleo 액션·음성 클립 삭제 | ✅ 완료 |
+| 주차 절차 코치 (#37) | D/N → R에서 후진·평행 주차 단계 음성 안내, 조향각으로 핸들 조작 확인, 정지로 기준점 진행 | 🔄 리뷰 중 |
 
 ---
 
@@ -418,6 +419,28 @@ pleos-side-coach/
 **배운 것 / 몰랐던 것**
 > 세션 복원 코덱은 모르는 CoachType 이름을 건너뛰므로, 예전 저장본에 TUTORIAL 카운트가 있어도 복원이 깨지지 않음
 > Pleos 개발자 사이트 My Project에 schema.json을 따로 올렸다면 그쪽도 같이 갱신해야 함
+
+---
+
+### #37 — 주차 절차 코치 (2026-11-11)
+
+**왜 이 작업을 했나**
+> 기획서 v1 범위(concept ④)인데 미구현. 초보운전자가 가장 어려워하는 주차를 카메라 없이 실제 연수 방식(단계 + 기준점 + 핸들 확인)으로 코칭
+
+**뭘 했나**
+> `domain/parking/`: 유형별 단계(후진 5단계, 평행 9단계), `ParkingCoachEngine`(순수 Kotlin, JVM 테스트 24개), `ParkingCoachController`(스냅샷 구독 + 0.5초 틱). 주행 화면에 주차 카드(단계·조향 게이지·"다음" 버튼), 대시보드에 유형 선택(후진/평행/끄기). 문구 18개 녹음 클립. 후진 중 급제동 판정 제외
+
+**어떤 구조를 선택했고 왜**
+> 단계를 데이터(종류·제목·문구)로 두고 엔진은 단계 종류별 판정만 함 → 유형 추가가 쉬움. 방향은 말하지 않고 "주차칸 쪽/반대쪽"으로 해서 클립 하나로 좌우 처리
+
+**왜 이 방법을 선택했나 (다른 방법은 없었나)**
+> 처음에는 기준점을 화면 "다음" 버튼으로 넘겼으나, 실측해 보니 R에서 시스템 후방카메라 화면이 앱 창 전체를 덮음 → 버튼을 누를 수 없음. 실제 연수처럼 "기준점에서 멈춤"을 신호로 바꿈
+> 브레이크를 밟은 채 정지를 조건으로 했다가, 콘솔 BRAKE가 누르는 동안만 true라 진행이 안 됨 → "움직인 뒤 0.8초 정지"로 변경(실차는 R 크립 때문에 정지 = 브레이크라 결과 같음)
+> P → R은 시작하지 않음: 주행 시작 때 주차칸에서 빼는 후진마다 주차 안내가 나오면 방해됨
+
+**배운 것 / 몰랐던 것**
+> R 기어 = `ai.umos.car.evs/.CarEvsCameraPreviewActivity`가 앱 창을 덮고 포커스까지 가져감(깜빡이 팝업과 달리 전체). 콘솔 R + ACCEL은 양수 차속
+> 음성 대기열은 최신 1개만 남기므로 경고가 대기 중인 단계 안내를 밀어낼 수 있음 → 단계 안내 후 6초 동안 속도 경고를 하지 않음
 
 ---
 

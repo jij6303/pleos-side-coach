@@ -6,6 +6,7 @@ import android.util.Log
 import com.jij6303.sidecoach.R
 import com.jij6303.sidecoach.data.navi.FakeRouteNaviEventSource
 import com.jij6303.sidecoach.data.navi.NaviEventSource
+import com.jij6303.sidecoach.data.store.ParkingSettings
 import com.jij6303.sidecoach.data.store.SessionStore
 import com.jij6303.sidecoach.data.ux.AaosUxRestrictionSource
 import com.jij6303.sidecoach.data.ux.FakeUxRestrictionSource
@@ -19,6 +20,8 @@ import com.jij6303.sidecoach.domain.DrivingStateRepository
 import com.jij6303.sidecoach.domain.coach.CoachingArbiter
 import com.jij6303.sidecoach.domain.coach.CoachingPipeline
 import com.jij6303.sidecoach.domain.coach.MessageCatalog
+import com.jij6303.sidecoach.domain.parking.ParkingCoachController
+import com.jij6303.sidecoach.domain.parking.ParkingPhrases
 import com.jij6303.sidecoach.domain.report.Grade
 import com.jij6303.sidecoach.domain.situation.SituationType
 import com.jij6303.sidecoach.domain.tips.CarTip
@@ -89,6 +92,10 @@ object ServiceLocator {
 
     lateinit var tipSpeaker: CarTipSpeaker
         private set
+    lateinit var parking: ParkingCoachController
+        private set
+    lateinit var parkingSettings: ParkingSettings
+        private set
 
     lateinit var voiceOutput: VoiceOutput
         private set
@@ -125,6 +132,13 @@ object ServiceLocator {
         naviEventSource = fakeRoute
         sessionStore = SessionStore(context)
         tipSpeaker = CarTipSpeaker(clock)
+        parkingSettings = ParkingSettings(context)
+        parking = ParkingCoachController(
+            snapshots = drivingStateRepository.updates,
+            clock = clock,
+            initialType = parkingSettings.load(),
+            log = { Log.i("Parking", it) },
+        )
         coachingPipeline = CoachingPipeline(
             updates = drivingStateRepository.updates,
             detectors = listOf(BlinkerOmissionDetector(), HardBrakeDetector()),
@@ -161,6 +175,24 @@ object ServiceLocator {
                 MessageCatalog.report(Grade.GREAT) to R.raw.report_great,
                 MessageCatalog.report(Grade.GOOD) to R.raw.report_good,
                 MessageCatalog.report(Grade.PRACTICE) to R.raw.report_practice,
+                ParkingPhrases.REVERSE_START to R.raw.parking_reverse_start,
+                ParkingPhrases.PARALLEL_START to R.raw.parking_parallel_start,
+                ParkingPhrases.FULL_LOCK to R.raw.parking_full_lock,
+                ParkingPhrases.FULL_LOCK_OPPOSITE to R.raw.parking_full_lock_opposite,
+                ParkingPhrases.CENTER to R.raw.parking_center,
+                ParkingPhrases.REVERSE_UNTIL_ALIGNED to R.raw.parking_reverse_until_aligned,
+                ParkingPhrases.REVERSE_FINISH to R.raw.parking_reverse_finish,
+                ParkingPhrases.PARALLEL_UNTIL_45 to R.raw.parking_parallel_until_45,
+                ParkingPhrases.PARALLEL_UNTIL_PASSED to R.raw.parking_parallel_until_passed,
+                ParkingPhrases.PARALLEL_UNTIL_ALIGNED to R.raw.parking_parallel_until_aligned,
+                ParkingPhrases.PARALLEL_FINISH to R.raw.parking_parallel_finish,
+                ParkingPhrases.NOT_ENOUGH_LOCK to R.raw.parking_not_enough_lock,
+                ParkingPhrases.NOT_CENTERED to R.raw.parking_not_centered,
+                ParkingPhrases.WRONG_DIRECTION to R.raw.parking_wrong_direction,
+                ParkingPhrases.TOO_FAST to R.raw.parking_too_fast,
+                ParkingPhrases.DONE to R.raw.parking_done,
+                ParkingPhrases.CANCELLED to R.raw.parking_cancelled,
+                ParkingPhrases.RETRY to R.raw.parking_retry,
             ),
             fallback = AndroidTtsVoiceOutput(context),
         )
@@ -179,7 +211,8 @@ object ServiceLocator {
         restoreSession()
         drivingStateRepository.start(appScope)
         coachingPipeline.start(appScope)
-        voiceCoach.start(appScope, merge(coachingPipeline.messages, tipSpeaker.messages))
+        parking.start(appScope)
+        voiceCoach.start(appScope, merge(coachingPipeline.messages, parking.messages, tipSpeaker.messages))
     }
 
     /**
@@ -200,6 +233,7 @@ object ServiceLocator {
     }
 
     fun stopCoaching() {
+        parking.stop()
         voiceCoach.stop()
         coachingPipeline.stop()
         drivingStateRepository.stop()

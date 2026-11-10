@@ -17,6 +17,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -35,6 +36,7 @@ import com.jij6303.sidecoach.data.vehicle.GearPosition
 import com.jij6303.sidecoach.data.vehicle.TurnSignalState
 import com.jij6303.sidecoach.domain.coach.CoachMessage
 import com.jij6303.sidecoach.domain.coach.CoachType
+import com.jij6303.sidecoach.domain.parking.ParkingType
 import com.jij6303.sidecoach.ui.theme.SideCoachTheme
 import com.jij6303.sidecoach.ui.theme.SignalTone
 import java.util.Locale
@@ -87,6 +89,7 @@ fun CoachingCard(message: CoachMessage?, modifier: Modifier = Modifier) {
         CoachType.SPEEDING -> signal.brake to "과속"
         CoachType.PREVIEW -> signal.neutral to "상황 예고"
         CoachType.REPORT -> signal.praise to "성적표"
+        CoachType.PARKING -> signal.neutral to "주차 코치"
         CoachType.TIP -> signal.neutral to "도움말"
         null -> signal.neutral to "코칭 대기"
     }
@@ -327,6 +330,41 @@ fun StatTile(
         }
         if (caption != null) {
             Text(caption, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
+// ───────────────────────── 주차 코치 ─────────────────────────
+
+/**
+ * 주차 코치 유형 선택 (#37). D/N에서 R로 바꾸면 고른 유형으로 시작한다.
+ * [onSelect]가 null이면(정차 P단이 아님) 바꿀 수 없다.
+ */
+@Composable
+fun ParkingCoachTile(
+    selected: ParkingType?,
+    onSelect: ((ParkingType?) -> Unit)?,
+    modifier: Modifier = Modifier,
+) {
+    Tile("주차 코치", modifier) {
+        Text(
+            if (selected == null) "꺼져 있어요" else "D에서 R로 바꾸면 ${selected.label}를 단계별로 안내해요",
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            (ParkingType.entries.map { it to it.label } + (null to "끄기")).forEach { (type, label) ->
+                val click = { onSelect?.invoke(type) ?: Unit }
+                if (type == selected) {
+                    Button(onClick = click, enabled = onSelect != null, modifier = Modifier.height(56.dp)) {
+                        Text(label, style = MaterialTheme.typography.titleMedium)
+                    }
+                } else {
+                    OutlinedButton(onClick = click, enabled = onSelect != null, modifier = Modifier.height(56.dp)) {
+                        Text(label, style = MaterialTheme.typography.titleMedium)
+                    }
+                }
+            }
         }
     }
 }

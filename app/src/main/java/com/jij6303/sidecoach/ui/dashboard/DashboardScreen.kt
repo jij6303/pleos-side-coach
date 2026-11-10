@@ -24,6 +24,7 @@ import com.jij6303.sidecoach.data.vehicle.TurnSignalState
 import com.jij6303.sidecoach.domain.DrivingSnapshot
 import com.jij6303.sidecoach.domain.coach.CoachMessage
 import com.jij6303.sidecoach.domain.coach.CoachType
+import com.jij6303.sidecoach.domain.parking.ParkingType
 import com.jij6303.sidecoach.domain.trip.TripStats
 import com.jij6303.sidecoach.ui.theme.SideCoachTheme
 import com.jij6303.sidecoach.ui.theme.WIDE_MIN_DP
@@ -43,6 +44,8 @@ fun DashboardScreen(
     modifier: Modifier = Modifier,
     demoRoute: Boolean = false,
     onOpenTips: (() -> Unit)? = null,
+    parkingType: ParkingType? = ParkingType.REVERSE,
+    onParkingTypeChange: ((ParkingType?) -> Unit)? = null,
 ) {
     BoxWithConstraints(
         modifier = modifier
@@ -64,6 +67,7 @@ fun DashboardScreen(
                         CoachingCard(lastMessage, Modifier.fillMaxWidth().height(260.dp))
                         SectionTitle("이번 주행")
                         StatsGrid(stats)
+                        ParkingCoachTile(parkingType, onParkingTypeChange, Modifier.fillMaxWidth())
                     }
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Gap)) {
                         SectionTitle("차량 상태")
@@ -76,6 +80,7 @@ fun DashboardScreen(
                 VehicleGrid(snapshot)
                 SectionTitle("이번 주행")
                 StatsGrid(stats)
+                ParkingCoachTile(parkingType, onParkingTypeChange, Modifier.fillMaxWidth())
             }
         }
     }
