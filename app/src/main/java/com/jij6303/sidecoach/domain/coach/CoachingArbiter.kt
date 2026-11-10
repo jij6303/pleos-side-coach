@@ -64,4 +64,16 @@ class CoachingArbiter(private val config: Config = Config()) {
         }
         return spokenCount(type) >= cap
     }
+
+    /** 저장용 상태. 대기열은 TTL(4초)이 짧아 저장하지 않는다. */
+    data class State(val spokenCounts: Map<CoachType, Int>, val lastSpokenMs: Long?)
+
+    fun exportState(): State = State(spokenCount.toMap(), lastSpokenMs)
+
+    fun restore(state: State) {
+        queue.clear()
+        spokenCount.clear()
+        spokenCount.putAll(state.spokenCounts)
+        lastSpokenMs = state.lastSpokenMs
+    }
 }

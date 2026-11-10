@@ -95,4 +95,35 @@ class TripSession(private val config: Config = Config()) {
         lastSpeed = s.speedKmh ?: lastSpeed
         if (lastSpeed > maxSpeed) maxSpeed = lastSpeed
     }
+
+    /** 저장용 진행 중 주행 상태. */
+    data class State(
+        val startedAtMs: Long,
+        val lastSpeedKmh: Float,
+        val movingMs: Long,
+        val distanceKm: Double,
+        val maxSpeedKmh: Float,
+    )
+
+    /** 진행 중인 주행이 없으면 null. */
+    fun exportState(): State? =
+        if (!active) null else State(startedAt, lastSpeed, movingMs, distanceKm, maxSpeed)
+
+    /**
+     * 진행 중이던 주행을 이어간다. 마지막 시각을 [nowMs]로 맞춰,
+     * 프로세스가 내려가 있던 동안은 주행 시간·거리에 넣지 않는다.
+     */
+    fun restore(state: State?, nowMs: Long) {
+        if (state == null) {
+            active = false
+            return
+        }
+        active = true
+        startedAt = state.startedAtMs
+        lastTs = nowMs
+        lastSpeed = state.lastSpeedKmh
+        movingMs = state.movingMs
+        distanceKm = state.distanceKm
+        maxSpeed = state.maxSpeedKmh
+    }
 }

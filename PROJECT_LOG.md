@@ -23,6 +23,7 @@ pleos-side-coach/
 │       ├── gleo/           # Gleo 음성 명령: 파싱·처리·응답 (schema.json은 assets/)
 │       ├── di/             # ServiceLocator (수동 DI, Fake/Real 전환)
 │       ├── data/navi/      # NaviEventSource, 시연용 가상 경로(FakeRouteNaviEventSource)
+│       ├── data/store/     # SessionStore (SharedPreferences + JSON), SessionStateCodec
 │       ├── data/ux/        # UxRestrictionSource (CarUxRestrictions + Fake)
 │       ├── service/        # CoachingService (Foreground Service)
 │       ├── voice/          # VoiceOutput(클립·Android TTS), AudioFocusController, VoiceCoach
@@ -61,7 +62,8 @@ pleos-side-coach/
 | 튜토리얼 (#23) | 내 차 익히기: 깜빡이 좌·우·브레이크 미션, 조작 자동 확인 | ✅ 완료 |
 | Gleo 연동 (#25) | schema.json + 코칭 시작·튜토리얼 activity 액션, 응답 브로드캐스트 | ✅ 완료 |
 | 숙련도 제거·튜토리얼 팝업 대응 (#27) | 교습 단일 모드, 깜빡이 카메라 팝업이 미션 카드를 가리지 않게 배치 | ✅ 완료 |
-| 차량 기능 도움말 (#29) | 김 서림·내기/외기·에어컨·가속 모드·회생제동·페달 모드·차일드락 9개, 버튼 그림, Gleo 음성 답변 | 🔄 리뷰 중 |
+| 차량 기능 도움말 (#29) | 김 서림·내기/외기·에어컨·가속 모드·회생제동·페달 모드·차일드락 9개, 버튼 그림, Gleo 음성 답변 | ✅ 완료 |
+| 세션 저장·복원 (#31) | 프로세스가 다시 만들어져도 진행 중 주행·통계·성적표 이어가기 | 🔄 리뷰 중 |
 
 ---
 
@@ -360,6 +362,26 @@ pleos-side-coach/
 
 ---
 
+### #31 — 주행 세션 상태 저장·복원 (2026-11-10)
+
+**왜 이 작업을 했나**
+> Pleos 가이드 필수 항목(상태 저장·복원). 시스템이 프로세스를 정리하거나 앱이 비정상 종료되면 진행 중이던 주행 통계·경고 횟수·성적표가 사라졌음
+
+**뭘 했나**
+> 각 구성 요소(TripRecorder, CoachingArbiter, TripSession, SituationPreviewEngine, 시연 경로)에 상태 내보내기/복원 추가. `SessionState` + JSON 코덱 + `SessionStore`(SharedPreferences). 코칭 중 5초마다·성적표 생성 시·코칭을 끌 때 저장, 서비스 재시작(START_STICKY) 시 복원. 재부팅했거나 30분 넘게 지난 기록은 버림. 단위 테스트 7개 추가
+
+**어떤 구조를 선택했고 왜**
+> 파이프라인의 처리·내보내기·복원을 같은 잠금으로 묶음. 저장 루프와 신호 처리가 다른 코루틴이라 동시 접근을 막아야 함. 저장 시각은 스냅샷과 같은 시계(elapsedRealtime)라, 재부팅하면 시계가 되돌아가는 것으로 재부팅을 알아챔. 복원할 때 마지막 시각을 지금으로 맞춰 내려가 있던 동안은 주행 시간·거리에 넣지 않음
+
+**왜 이 방법을 선택했나 (다른 방법은 없었나)**
+> 설계는 DataStore였지만 JSON 문자열 하나만 저장하므로 SharedPreferences로 충분해 의존성을 늘리지 않음. 중재자 대기열은 TTL이 4초라 저장하지 않음. 튜토리얼은 정차 중 짧은 흐름이라 저장하지 않음
+
+**배운 것 / 몰랐던 것**
+> 에뮬레이터 앱은 u10 사용자로 돌아서 `run-as ... kill`로는 프로세스를 죽일 수 없음(Operation not permitted). `adb shell am crash --user 10 <패키지>`로 비정상 종료를 재현할 수 있고, START_STICKY 서비스는 약 1초 뒤 다시 시작됨
+> 실측(T13): 주행 중 급제동 1회 → 크래시 → 1초 뒤 서비스 재시작·복원 → P단 성적표에 급제동 1회·크래시 전 주행 시간 반영
+
+---
+
 ## 🐛 에러 모음
 
 | 에러 | 원인 | 해결 |
@@ -375,3 +397,4 @@ pleos-side-coach/
 | 주행 시간이 절반으로 집계 | 이벤트 간격 상한이 정속 구간을 잘라냄 | 상한 제거 |
 | ps1 첫 줄 주석이 명령으로 실행됨 | BOM이 두 번 붙음 | BOM 하나로 정리 |
 | Kotlin 문자열에 실제 줄바꿈 | sed 치환에서 `\n`이 개행으로 바뀜 | 파일 편집 도구로 직접 수정 |
+| run-as kill: Operation not permitted | 앱이 u10 사용자로 실행 | `am crash --user 10 <패키지>` 사용 |

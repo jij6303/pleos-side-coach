@@ -61,4 +61,14 @@ class TripRecorder(private val praiseStreak: Int = DEFAULT_PRAISE_STREAK) {
         /** 💭 깜빡이 켠 차선 변경 3회 연속이면 칭찬. */
         const val DEFAULT_PRAISE_STREAK = 3
     }
+
+    /** 저장용 상태: 통계 + 칭찬 연속 횟수. */
+    data class State(val stats: TripStats, val praiseStreak: Int)
+
+    fun exportState(): State = State(_stats.value, streak)
+
+    fun restore(state: State) {
+        _stats.value = state.stats
+        streak = state.praiseStreak
+    }
 }

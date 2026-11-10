@@ -31,8 +31,18 @@ class FakeRouteNaviEventSource(
 
     override val isDemo: Boolean = true
 
+    /** 경로 위치. 저장·복원할 수 있도록 하나만 둔다 (events는 한 곳에서만 구독). */
+    private val tracker = Tracker()
+
+    /** 저장용 경로 상태. 경로를 달리는 중이 아니면 null. */
+    data class RouteState(val odometerM: Double, val speedKmh: Float, val lastSent: Map<String, Int>)
+
+    fun exportState(): RouteState? = tracker.exportState()
+
+    /** 이전 위치에서 이어간다. 내려가 있던 동안은 이동한 것으로 치지 않는다. */
+    fun restore(state: RouteState?) = tracker.restore(state, clock())
+
     override val events: Flow<NaviEvent> = channelFlow {
-        val tracker = Tracker()
         launch {
             snapshots.collect { s -> tracker.onSnapshot(s).forEach { send(it) } }
         }
@@ -66,6 +76,24 @@ class FakeRouteNaviEventSource(
             speedKmh = s.speedKmh ?: speedKmh
             if (s.gear == GearPosition.PARK) active = false
             return out
+        }
+
+        @Synchronized
+        fun exportState(): RouteState? =
+            if (!active) null else RouteState(odometerM, speedKmh, lastSent.toMap())
+
+        @Synchronized
+        fun restore(state: RouteState?, nowMs: Long) {
+            if (state == null) {
+                active = false
+                return
+            }
+            active = true
+            odometerM = state.odometerM
+            speedKmh = state.speedKmh
+            lastTs = nowMs
+            lastSent.clear()
+            lastSent.putAll(state.lastSent)
         }
 
         @Synchronized

@@ -6,6 +6,7 @@ import android.util.Log
 import com.jij6303.sidecoach.R
 import com.jij6303.sidecoach.data.navi.FakeRouteNaviEventSource
 import com.jij6303.sidecoach.data.navi.NaviEventSource
+import com.jij6303.sidecoach.data.store.SessionStore
 import com.jij6303.sidecoach.data.ux.AaosUxRestrictionSource
 import com.jij6303.sidecoach.data.ux.FakeUxRestrictionSource
 import com.jij6303.sidecoach.data.ux.UxRestrictionSource
@@ -68,6 +69,13 @@ object ServiceLocator {
     lateinit var naviEventSource: NaviEventSource
         private set
 
+    /** 시연용 경로. 위치를 저장·복원하려고 구체 타입으로도 들고 있는다. */
+    private lateinit var fakeRoute: FakeRouteNaviEventSource
+    private lateinit var sessionStore: SessionStore
+
+    /** 메시지·스냅샷과 같은 시계: 실제 소스는 elapsedRealtime, Fake는 currentTimeMillis. */
+    private lateinit var clock: () -> Long
+
     lateinit var uxRestrictionSource: UxRestrictionSource
         private set
 
@@ -116,9 +124,10 @@ object ServiceLocator {
             gear = drivingStateRepository.snapshot.map { it.gear },
         ).mode
         uiMode = uiModeSource.stateIn(appScope, SharingStarted.WhileSubscribed(5_000), UiMode.DRIVING_VOICE)
-        // 메시지 시각과 같은 시계: 실제 소스는 elapsedRealtime, Fake는 currentTimeMillis
-        val clock: () -> Long = if (useFake) System::currentTimeMillis else SystemClock::elapsedRealtime
-        naviEventSource = FakeRouteNaviEventSource(drivingStateRepository.updates, clock)
+        clock = if (useFake) System::currentTimeMillis else SystemClock::elapsedRealtime
+        fakeRoute = FakeRouteNaviEventSource(drivingStateRepository.updates, clock)
+        naviEventSource = fakeRoute
+        sessionStore = SessionStore(context)
         tutorial = TutorialController(drivingStateRepository.updates, clock)
         tipSpeaker = CarTipSpeaker(clock)
         coachingPipeline = CoachingPipeline(
@@ -127,6 +136,8 @@ object ServiceLocator {
             arbiter = CoachingArbiter(),
             recorder = TripRecorder(),
             naviEvents = naviEventSource.events,
+            // 프로세스가 다시 만들어져도 이어가도록 주기적으로 저장 (dev-architecture 9장, #31)
+            stateSink = { sessionStore.save(it.copy(route = fakeRoute.exportState())) },
         )
         // 중재자가 고른 메시지를 로그로도 남긴다 (logcat 태그: Coach)
         appScope.launch {
@@ -177,9 +188,27 @@ object ServiceLocator {
 
     /** 신호 구독과 코칭 판정을 함께 시작한다. CoachingService가 호출한다. */
     fun startCoaching() {
+        restoreSession()
         drivingStateRepository.start(appScope)
         coachingPipeline.start(appScope)
         voiceCoach.start(appScope, merge(coachingPipeline.messages, tutorial.messages, tipSpeaker.messages))
+    }
+
+    /**
+     * 저장된 주행이 있으면 이어간다. 재부팅했거나 30분 넘게 지났으면 버리고 새 주행으로 시작한다.
+     */
+    private fun restoreSession() {
+        if (coachingPipeline.isRunning) return
+        val saved = sessionStore.load() ?: return
+        val now = clock()
+        if (!saved.isUsable(now)) {
+            Log.i("SessionStore", "discard: savedAt=${saved.savedAtMs} now=$now")
+            sessionStore.clear()
+            return
+        }
+        coachingPipeline.restore(saved, now)
+        fakeRoute.restore(saved.route)
+        Log.i("SessionStore", "restored: trip=${saved.trip != null} stats=${saved.recorder.stats} report=${saved.pendingReport != null}")
     }
 
     fun stopCoaching() {
