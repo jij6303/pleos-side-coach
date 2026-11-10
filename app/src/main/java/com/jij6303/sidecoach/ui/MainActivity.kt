@@ -28,6 +28,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.jij6303.sidecoach.data.vehicle.SignalKind
+import com.jij6303.sidecoach.data.vehicle.TurnSignalState
 import com.jij6303.sidecoach.di.ServiceLocator
 import com.jij6303.sidecoach.service.CoachingService
 import com.jij6303.sidecoach.ui.dashboard.DashboardScreen
@@ -46,10 +47,7 @@ class MainActivity : ComponentActivity() {
 
     private val gleoHandler by lazy {
         GleoActionHandler(
-            startCoaching = { level ->
-                CoachingService.start(this)
-                pipeline.arbiter.level = level
-            },
+            startCoaching = { CoachingService.start(this) },
             // 서비스가 막 시작됐으면 기어 값이 아직 없을 수 있어 잠시 기다린다 (응답 7초 제한 안)
             currentMode = {
                 withTimeoutOrNull(MODE_WAIT_MS) {
@@ -151,6 +149,8 @@ class MainActivity : ComponentActivity() {
                             onSkip = { tutorial.skip(ServiceLocator.appScope) },
                             onClose = tutorial::stop,
                             modifier = Modifier.padding(innerPadding),
+                            cameraPopup = snapshot.turnSignal == TurnSignalState.LEFT ||
+                                snapshot.turnSignal == TurnSignalState.RIGHT,
                         )
                         UiMode.IDLE_LIMITED, UiMode.PARKED_FULL -> DashboardScreen(
                             snapshot = snapshot,

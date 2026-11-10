@@ -8,16 +8,10 @@
       "function": {
         "component": "activity",
         "name": "START_DRIVING_COACH",
-        "description": "Starts a real-time voice coaching session for the driver at the selected experience level.",
+        "description": "Starts a real-time voice coaching session that guides the driver while driving.",
         "parameters": {
           "type": "object",
-          "properties": {
-            "experienceLevel": {
-              "type": "string",
-              "description": "The driver's experience level for adjusting how often coaching is given.",
-              "enum": ["BEGINNER", "INTERMEDIATE"]
-            }
-          },
+          "properties": {},
           "required": []
         }
       }

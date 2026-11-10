@@ -1,6 +1,5 @@
 package com.jij6303.sidecoach.gleo
 
-import com.jij6303.sidecoach.domain.coach.ExperienceLevel
 import com.jij6303.sidecoach.ui.UiMode
 import kotlinx.coroutines.test.runTest
 import org.json.JSONArray
@@ -17,7 +16,7 @@ class GleoTest {
 
     @Test
     fun `ACTION_PARAM JSON을 맵으로 읽는다`() {
-        assertEquals(mapOf("experienceLevel" to "INTERMEDIATE"), GleoActionParser.parse("""{"experienceLevel":"INTERMEDIATE"}"""))
+        assertEquals(mapOf("key" to "VALUE"), GleoActionParser.parse("""{"key":"VALUE"}"""))
     }
 
     @Test
@@ -48,30 +47,22 @@ class GleoTest {
 
     // ── 명령 처리 ──
 
-    private var startedLevel: ExperienceLevel? = null
+    private var coachingStarted = false
     private var tutorialStarted = false
     private var mode: UiMode? = UiMode.PARKED_FULL
 
     private val handler = GleoActionHandler(
-        startCoaching = { startedLevel = it },
+        startCoaching = { coachingStarted = true },
         currentMode = { mode },
         startTutorial = { tutorialStarted = true },
     )
 
     @Test
-    fun `T1 코칭 시작은 숙련도를 적용하고 success`() = runTest {
-        val r = handler.handle("START_DRIVING_COACH", mapOf("experienceLevel" to "INTERMEDIATE"))!!
-        assertEquals(ExperienceLevel.INTERMEDIATE, startedLevel)
+    fun `T1 코칭 시작은 서비스를 시작하고 success`() = runTest {
+        val r = handler.handle("START_DRIVING_COACH", emptyMap())!!
+        assertTrue(coachingStarted)
         assertEquals(GleoResponse.Status.SUCCESS, r.status)
         assertEquals("START_DRIVING_COACH", r.functionName)
-    }
-
-    @Test
-    fun `숙련도가 없거나 모르는 값이면 초급`() = runTest {
-        handler.handle("START_DRIVING_COACH", emptyMap())
-        assertEquals(ExperienceLevel.BEGINNER, startedLevel)
-        handler.handle("START_DRIVING_COACH", mapOf("experienceLevel" to "EXPERT"))
-        assertEquals(ExperienceLevel.BEGINNER, startedLevel)
     }
 
     @Test

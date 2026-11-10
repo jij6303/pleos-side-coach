@@ -1,6 +1,5 @@
 package com.jij6303.sidecoach.gleo
 
-import com.jij6303.sidecoach.domain.coach.ExperienceLevel
 import com.jij6303.sidecoach.ui.UiMode
 
 /**
@@ -8,26 +7,23 @@ import com.jij6303.sidecoach.ui.UiMode
  * 처리하지 않는 액션이면 null.
  */
 class GleoActionHandler(
-    private val startCoaching: (ExperienceLevel) -> Unit,
+    private val startCoaching: () -> Unit,
     /** 차량 상태가 들어온 뒤의 화면 모드. 끝내 모르면 null. */
     private val currentMode: suspend () -> UiMode?,
     private val startTutorial: () -> Unit,
 ) {
     suspend fun handle(action: String?, params: Map<String, String>): GleoResponse? = when (action) {
-        GleoContract.START_DRIVING_COACH -> startCoach(params)
+        GleoContract.START_DRIVING_COACH -> startCoach()
         GleoContract.RUN_VEHICLE_TUTORIAL -> runTutorial()
         else -> null
     }
 
-    private fun startCoach(params: Map<String, String>): GleoResponse {
-        val raw = params[GleoContract.PARAM_EXPERIENCE_LEVEL]
-        val level = ExperienceLevel.entries.firstOrNull { it.name == raw } ?: ExperienceLevel.BEGINNER
-        startCoaching(level)
+    private fun startCoach(): GleoResponse {
+        startCoaching()
         return GleoResponse(
             functionName = GleoContract.START_DRIVING_COACH,
             status = GleoResponse.Status.SUCCESS,
             message = "The driving coach session has started.",
-            data = """[{"experienceLevel":"${level.name}"}]""",
         )
     }
 

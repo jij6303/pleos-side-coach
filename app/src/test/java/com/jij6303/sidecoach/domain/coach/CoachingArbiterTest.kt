@@ -42,18 +42,14 @@ class CoachingArbiterTest {
     }
 
     @Test
-    fun `초급은 깜빡이 경고 5회, 중급은 2회까지`() {
-        fun spoken(level: ExperienceLevel): Int {
-            val a = CoachingArbiter(level)
-            repeat(10) { i ->
-                val t = i * 10_000L
-                a.submit(msg(CoachType.BLINKER_OMISSION, t, key = "b$i"))
-                a.next(t)
-            }
-            return a.spokenCount(CoachType.BLINKER_OMISSION)
+    fun `깜빡이 경고는 주행당 5회까지`() {
+        val a = CoachingArbiter()
+        repeat(10) { i ->
+            val t = i * 10_000L
+            a.submit(msg(CoachType.BLINKER_OMISSION, t, key = "b$i"))
+            a.next(t)
         }
-        assertEquals(5, spoken(ExperienceLevel.BEGINNER))
-        assertEquals(2, spoken(ExperienceLevel.INTERMEDIATE))
+        assertEquals(5, a.spokenCount(CoachType.BLINKER_OMISSION))
     }
 
     @Test
