@@ -1,6 +1,8 @@
 package com.jij6303.sidecoach.ui
 
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.util.Log
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -15,6 +17,15 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import com.jij6303.sidecoach.data.vehicle.GearPosition
+import com.jij6303.sidecoach.gleo.GleoActionHandler
+import com.jij6303.sidecoach.gleo.GleoActionParser
+import com.jij6303.sidecoach.gleo.GleoCallbackSender
+import com.jij6303.sidecoach.gleo.GleoContract
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.jij6303.sidecoach.data.vehicle.SignalKind
 import com.jij6303.sidecoach.di.ServiceLocator
@@ -32,6 +43,39 @@ class MainActivity : ComponentActivity() {
     private val repository get() = ServiceLocator.drivingStateRepository
     private val pipeline get() = ServiceLocator.coachingPipeline
     private val tutorial get() = ServiceLocator.tutorial
+
+    private val gleoHandler by lazy {
+        GleoActionHandler(
+            startCoaching = { level ->
+                CoachingService.start(this)
+                pipeline.arbiter.level = level
+            },
+            // 서비스가 막 시작됐으면 기어 값이 아직 없을 수 있어 잠시 기다린다 (응답 7초 제한 안)
+            currentMode = {
+                withTimeoutOrNull(MODE_WAIT_MS) {
+                    repository.snapshot.first { it.gear != GearPosition.UNKNOWN }
+                    ServiceLocator.uiModeSource.first()
+                }
+            },
+            startTutorial = { startTutorial(repository.snapshot.value.unavailable.keys) },
+        )
+    }
+
+    /** Gleo가 startActivity로 보낸 명령을 처리하고 응답을 보낸다 (dev-architecture 7.2). */
+    private fun handleGleo(intent: Intent?) {
+        val action = intent?.action ?: return
+        if (action == Intent.ACTION_MAIN) return
+        val params = GleoActionParser.parse(intent.getStringExtra(GleoContract.EXTRA_PARAM))
+        Log.i("Gleo", "action=$action params=$params")
+        lifecycleScope.launch {
+            gleoHandler.handle(action, params)?.let { GleoCallbackSender.send(this@MainActivity, it) }
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        handleGleo(intent)
+    }
 
     /** 받을 수 없는 신호의 미션은 빼고 시작한다 (dev-architecture 4.6). */
     private fun startTutorial(unavailable: Set<SignalKind>) {
@@ -127,6 +171,8 @@ class MainActivity : ComponentActivity() {
         }
 
         requestMissingCarPermissions()
+        // 화면 회전 등으로 다시 만들어질 때 같은 명령을 또 처리하지 않는다
+        if (savedInstanceState == null) handleGleo(intent)
     }
 
     // 코칭은 CoachingService가 맡는다. 화면이 보일 때 시작만 하고, 숨겨져도 멈추지 않는다.
@@ -144,6 +190,8 @@ class MainActivity : ComponentActivity() {
     }
 
     private companion object {
+        const val MODE_WAIT_MS = 3_000L
+
         /**
          * CAR_SPEED는 dangerous 권한(위치 그룹)이라 런타임 승인이 필요하다. CAR_POWERTRAIN은 normal이라 자동 승인.
          * POST_NOTIFICATIONS(13+)는 코칭 서비스 알림 표시용. 거부해도 서비스는 동작한다.

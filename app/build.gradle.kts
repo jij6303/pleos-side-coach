@@ -52,6 +52,7 @@ dependencies {
     implementation(libs.pleos.vehicle)
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.org.json) // Android의 org.json은 JVM 테스트에서 동작하지 않아 실제 구현을 넣는다
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     androidTestImplementation(libs.androidx.espresso.core)

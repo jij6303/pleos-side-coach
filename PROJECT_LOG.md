@@ -20,6 +20,7 @@ pleos-side-coach/
 │   └── src/main/java/com/jij6303/sidecoach/
 │       ├── data/vehicle/   # VehicleDataSource 인터페이스 + Pleos SDK·AAOS·Fake 구현
 │       ├── domain/         # DrivingSnapshot, DrivingStateRepository, 디텍터·중재자·주행(trip/)·성적표(report/)·상황 예고(situation/)·튜토리얼(tutorial/) (순수 Kotlin)
+│       ├── gleo/           # Gleo 음성 명령: 파싱·처리·응답 (schema.json은 assets/)
 │       ├── di/             # ServiceLocator (수동 DI, Fake/Real 전환)
 │       ├── data/navi/      # NaviEventSource, 시연용 가상 경로(FakeRouteNaviEventSource)
 │       ├── data/ux/        # UxRestrictionSource (CarUxRestrictions + Fake)
@@ -57,7 +58,8 @@ pleos-side-coach/
 | 코칭 서비스·주행 화면 (#17) | Foreground Service, 주행 규제별 화면 전환, 주행 화면 | ✅ 완료 |
 | 성적표 (#19) | 주행 단위 판정, 점수·등급·다음 연습 과제, 성적표 화면·요약 음성 | ✅ 완료 |
 | 상황 예고 (#21) | 가상 경로(Fake 내비) + 300~150m 예고, 상황별 음성 | ✅ 완료 |
-| 튜토리얼 (#23) | 내 차 익히기: 깜빡이 좌·우·브레이크 미션, 조작 자동 확인 | 🔄 리뷰 중 |
+| 튜토리얼 (#23) | 내 차 익히기: 깜빡이 좌·우·브레이크 미션, 조작 자동 확인 | ✅ 완료 |
+| Gleo 연동 (#25) | schema.json + 코칭 시작·튜토리얼 activity 액션, 응답 브로드캐스트 | 🔄 리뷰 중 |
 
 ---
 
@@ -292,6 +294,27 @@ pleos-side-coach/
 > Vehicle SDK 와이퍼 API: `getWiper().registerWiperState(WindowArea, WiperStateListener)`, 상태 `WiperState`(OFF/ON 등), 권한 `CAR_WINDOWS`(가이드 요약의 `READ_WINDSHIELD_WIPERS`와 다름)
 > Virtual Console에서는 주차 브레이크(`PARKING_BRAKE_ON`) 조작 항목을 찾을 수 없음 → 에뮬레이터에서 완료할 수 없는 미션이라 뺌(사용자 결정)
 > 튜토리얼 중 기어가 잠깐이라도 P를 벗어나면 설계대로 튜토리얼이 끝남
+
+---
+
+### #25 — Gleo 음성 명령 연동 (2026-11-10)
+
+**왜 이 작업을 했나**
+> 운전 중에는 화면을 만질 수 없으니 차량 음성 AI(Gleo)로 "코칭 시작해줘", "튜토리얼 열어줘"를 말할 수 있어야 함. 공모전 기술 활용성 평가 항목이기도 함
+
+**뭘 했나**
+> `assets/schema.json`(activity 액션 2개: START_DRIVING_COACH + experienceLevel, RUN_VEHICLE_TUTORIAL), 매니페스트 intent-filter, `GleoActionParser`(ACTION_PARAM JSON), `GleoActionHandler`(명령 처리), `GleoResponse`·`GleoCallbackSender`(APP_ACTION_RESPONSE 브로드캐스트). 숙련도는 중재자 레벨(깜빡이 경고 상한)에 적용. 단위 테스트 13개(schema 규칙 검사 포함)
+
+**어떤 구조를 선택했고 왜**
+> 명령 처리 로직은 Android 의존 없이 람다를 주입받아 JVM 테스트 가능. 튜토리얼 명령은 앱이 꺼진 상태에서 호출되면 기어 값이 아직 없으므로 최대 3초 기다린 뒤 P단 여부를 판단(응답 7초 제한 안). schema 테스트로 "선언한 액션은 모두 코드에서 처리"를 보장
+
+**왜 이 방법을 선택했나 (다른 방법은 없었나)**
+> 설계의 service 액션(EXPLAIN_CURRENT_TRAFFIC_RULE)은 Receiver 수신 검증이 필요한 2차 범위라 schema에 넣지 않음. 선언만 하고 동작하지 않으면 심사·사용성 모두 문제. 튜토리얼 액션의 targetComponent 파라미터는 실제 미션(깜빡이·브레이크)과 맞지 않아 뺌
+
+**배운 것 / 몰랐던 것**
+> Gleo(GAA, `ai.umos.ambientai`)는 앱 설치 시 schema.json을 바로 읽음 (`[GAA] [Schema] Loaded schema.json from com.jij6303.sidecoach` 로그)
+> 실제 음성 호출은 Gleo 측 검토 통과 후 활성화되므로 에뮬레이터에서는 `am start -a <ACTION> --es ACTION_PARAM '<json>'`로 시뮬레이션
+> 테스트 컴파일 클래스패스에는 android.jar의 org.json이 먼저 잡혀 `keySet()` 같은 최신 메서드를 못 씀 → `keys()` 사용
 
 ---
 

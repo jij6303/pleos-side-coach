@@ -560,6 +560,8 @@ val req = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_D
 - `version`은 App Market에 등록한 버전과 맞춰야 한다.
 - `parameters.properties`가 빈 객체여도 검토를 통과하는지 확인해야 한다.
 
+> **구현(#25) 기준 변경**: MVP schema는 activity 액션 2개(`START_DRIVING_COACH`, `RUN_VEHICLE_TUTORIAL`)만 선언한다. `packageName`은 `com.jij6303.sidecoach`, `version`은 앱 versionName(`1.0`). `RUN_VEHICLE_TUTORIAL`은 실제 미션과 맞지 않는 `targetComponent` 파라미터를 뺐다. `EXPLAIN_CURRENT_TRAFFIC_RULE`(service)은 수신 검증 후 2차에 추가. 실측: 설치 시 Gleo(GAA)가 schema.json을 읽는 로그 확인.
+
 ### 7.2 Intent 수신
 
 - Gleo 쪽 동작(✅)
