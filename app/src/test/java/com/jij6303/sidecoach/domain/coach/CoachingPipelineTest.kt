@@ -7,7 +7,9 @@ import com.jij6303.sidecoach.domain.detect.BlinkerOmissionDetector
 import com.jij6303.sidecoach.domain.detect.HardBrakeDetector
 import com.jij6303.sidecoach.domain.trip.TripRecorder
 import kotlinx.coroutines.flow.emptyFlow
+import com.jij6303.sidecoach.data.navi.NaviEvent
 import com.jij6303.sidecoach.domain.report.Grade
+import com.jij6303.sidecoach.domain.situation.SituationType
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
@@ -83,5 +85,14 @@ class CoachingPipelineTest {
         pipeline.process(DrivingSnapshot(timestampMs = 20_000, speedKmh = 0f, gear = GearPosition.DRIVE))
         assertNull(pipeline.lastReport.value)
         assertEquals(0, pipeline.recorder.stats.value.hardBrakes)
+    }
+
+    @Test
+    fun `T7 내비 이벤트가 예고 구간에 들어오면 상황 예고를 말한다`() {
+        assertNull(pipeline.processNavi(NaviEvent.Situation("r", SituationType.ROUNDABOUT, 350f, 0)))
+        val m = pipeline.processNavi(NaviEvent.Situation("r", SituationType.ROUNDABOUT, 290f, 1_000))
+        assertEquals(CoachType.PREVIEW, m?.type)
+        assertEquals(m, pipeline.lastMessage.value)
+        assertNull(pipeline.processNavi(NaviEvent.Situation("r", SituationType.ROUNDABOUT, 200f, 9_000)))
     }
 }

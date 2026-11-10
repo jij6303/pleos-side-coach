@@ -19,8 +19,9 @@ pleos-side-coach/
 ├── app/                    # Android 앱 모듈 (Compose, 패키지 com.jij6303.sidecoach)
 │   └── src/main/java/com/jij6303/sidecoach/
 │       ├── data/vehicle/   # VehicleDataSource 인터페이스 + Pleos SDK·AAOS·Fake 구현
-│       ├── domain/         # DrivingSnapshot, DrivingStateRepository, 디텍터·중재자·주행(trip/)·성적표(report/) (순수 Kotlin)
+│       ├── domain/         # DrivingSnapshot, DrivingStateRepository, 디텍터·중재자·주행(trip/)·성적표(report/)·상황 예고(situation/) (순수 Kotlin)
 │       ├── di/             # ServiceLocator (수동 DI, Fake/Real 전환)
+│       ├── data/navi/      # NaviEventSource, 시연용 가상 경로(FakeRouteNaviEventSource)
 │       ├── data/ux/        # UxRestrictionSource (CarUxRestrictions + Fake)
 │       ├── service/        # CoachingService (Foreground Service)
 │       ├── voice/          # VoiceOutput(클립·Android TTS), AudioFocusController, VoiceCoach
@@ -54,7 +55,8 @@ pleos-side-coach/
 | 대시보드 UI (#13) | 코칭 카드·차량 상태·주행 통계 타일, 앱 전용 테마 | ✅ 완료 |
 | 음성 코칭 출력 (#15) | 오디오 포커스, 녹음 클립 + Android TTS fallback | ✅ 완료 |
 | 코칭 서비스·주행 화면 (#17) | Foreground Service, 주행 규제별 화면 전환, 주행 화면 | ✅ 완료 |
-| 성적표 (#19) | 주행 단위 판정, 점수·등급·다음 연습 과제, 성적표 화면·요약 음성 | 🔄 리뷰 중 |
+| 성적표 (#19) | 주행 단위 판정, 점수·등급·다음 연습 과제, 성적표 화면·요약 음성 | ✅ 완료 |
+| 상황 예고 (#21) | 가상 경로(Fake 내비) + 300~150m 예고, 상황별 음성 | 🔄 리뷰 중 |
 
 ---
 
@@ -248,6 +250,26 @@ pleos-side-coach/
 > 에러: TripSessionTest에서 주행 시간 10초 기대, 실제 5초
 > 원인: 이벤트 간격 상한(5초)이 정상 정속 구간까지 잘라냄
 > 해결: 상한 제거. 서비스가 멈추면 주행도 초기화되므로 긴 공백이 생길 일이 없음
+
+---
+
+### #21 — 상황 예고 코칭 (Fake 내비 이벤트) (2026-11-10)
+
+**왜 이 작업을 했나**
+> 기획의 메인 기능. 회전교차로·어린이보호구역 등을 지나기 전에 강사처럼 미리 말해줘야 함. NaviHelper 실연동은 2차라 MVP는 시연용 이벤트로 보여줌
+
+**뭘 했나**
+> `NaviEventSource` 인터페이스, 시연용 `FakeRouteNaviEventSource`(출발하면 가상 경로 400m 회전교차로·1.1km 어린이보호구역·1.8km 비보호좌회전·2.6km 합류, 실제 차속을 적분해 남은 거리 이벤트), `SituationPreviewEngine`(300~150m에서 1회, 같은 지점 10분 내 반복 금지), 상황별 문구·음성 클립 4개, 대시보드 "시연 경로" 표시. 단위 테스트 10개 추가
+
+**어떤 구조를 선택했고 왜**
+> 파이프라인이 스냅샷과 내비 이벤트를 `merge`한 하나의 흐름으로 순서대로 처리. 두 코루틴이 중재자를 동시에 건드리지 않게 하기 위함. 실제 NaviHelper 구현은 `NaviEventSource`만 바꾸면 들어올 수 있음
+
+**왜 이 방법을 선택했나 (다른 방법은 없었나)**
+> 시간 기반 스크립트(예: 10초 뒤 이벤트)로 만들 수도 있었지만, 콘솔 차속을 적분하는 가상 경로가 실제 운전과 같은 감각(빨리 달리면 빨리 다가옴)을 줘 시연이 자연스러움. 문구에는 거리를 넣지 않아 녹음 클립으로 재생 가능
+
+**배운 것 / 몰랐던 것**
+> Android 14의 variable update rate 때문에 같은 차속 값은 이벤트가 오지 않을 수 있어, 가상 경로는 1초 타이머로도 거리를 갱신함
+> 에뮬레이터 실측: D 후 약 50 km/h 주행 시 11초 만에 회전교차로 예고, 이어서 어린이보호구역 예고
 
 ---
 

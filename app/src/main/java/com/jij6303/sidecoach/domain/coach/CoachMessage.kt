@@ -1,6 +1,7 @@
 package com.jij6303.sidecoach.domain.coach
 
 import com.jij6303.sidecoach.domain.report.Grade
+import com.jij6303.sidecoach.domain.situation.SituationType
 
 /** 코칭 유형. [priority]가 클수록 먼저 말한다 (dev-architecture 4.5). */
 enum class CoachType(val priority: Int, val high: Boolean) {
@@ -30,6 +31,14 @@ object MessageCatalog {
     fun blinkerOmission(): String = "차선 바꿀 땐 깜빡이 먼저 켜요!"
     fun hardBrake(): String = "조금 더 일찍, 부드럽게 밟아볼까요?"
     fun praise(): String = "깜빡이 아주 잘 켜고 있어요. 좋아요!"
+
+    /** 상황 예고. 거리는 말하지 않는다(녹음 클립으로 재생하기 위해 문구를 고정). */
+    fun preview(type: SituationType): String = when (type) {
+        SituationType.ROUNDABOUT -> "곧 회전교차로예요. 돌고 있는 차가 우선이니 왼쪽을 보고 천천히 들어가요."
+        SituationType.SCHOOL_ZONE -> "곧 어린이보호구역이에요. 시속 30 이하로, 횡단보도 앞에서는 일단 멈춰요."
+        SituationType.UNPROTECTED_LEFT -> "곧 비보호좌회전이에요. 맞은편 직진 차가 지나간 뒤에 돌아요."
+        SituationType.MERGE -> "곧 합류해요. 깜빡이 켜고 가속 차로에서 속도를 맞춰요."
+    }
 
     /** 성적표가 뜰 때 한 문장. */
     fun report(grade: Grade): String = when (grade) {

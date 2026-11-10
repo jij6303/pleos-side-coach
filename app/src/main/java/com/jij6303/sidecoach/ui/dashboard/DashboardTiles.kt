@@ -331,7 +331,7 @@ fun StatTile(
 // ───────────────────────── 헤더 ─────────────────────────
 
 @Composable
-fun DashboardHeader(usingFake: Boolean, modifier: Modifier = Modifier) {
+fun DashboardHeader(usingFake: Boolean, demoRoute: Boolean = false, modifier: Modifier = Modifier) {
     val signal = SideCoachTheme.signal
     Row(
         modifier = modifier.fillMaxWidth(),
@@ -339,10 +339,14 @@ fun DashboardHeader(usingFake: Boolean, modifier: Modifier = Modifier) {
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
         Text("초보운전탈출", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onBackground)
-        Chip(
-            text = if (usingFake) "Fake 신호" else "코칭 중",
-            tone = if (usingFake) signal.turn else signal.praise,
-        )
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            // 상황 예고가 가짜 경로 기반이면 시연임을 밝힌다
+            if (demoRoute) Chip(text = "시연 경로", tone = signal.neutral)
+            Chip(
+                text = if (usingFake) "Fake 신호" else "코칭 중",
+                tone = if (usingFake) signal.turn else signal.praise,
+            )
+        }
     }
 }
 
