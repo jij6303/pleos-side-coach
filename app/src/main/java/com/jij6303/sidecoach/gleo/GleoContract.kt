@@ -8,7 +8,6 @@ object GleoContract {
     const val EXTRA_RESPONSE = "response"
 
     const val START_DRIVING_COACH = "START_DRIVING_COACH"
-    const val RUN_VEHICLE_TUTORIAL = "RUN_VEHICLE_TUTORIAL"
     const val ASK_CAR_TIP = "ASK_CAR_TIP"
 
     const val PARAM_TOPIC = "topic"

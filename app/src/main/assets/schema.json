@@ -20,19 +20,6 @@
       "type": "function",
       "function": {
         "component": "activity",
-        "name": "RUN_VEHICLE_TUTORIAL",
-        "description": "Opens an interactive tutorial that teaches the driver how to use the turn signals and brake while the vehicle is parked.",
-        "parameters": {
-          "type": "object",
-          "properties": {},
-          "required": []
-        }
-      }
-    },
-    {
-      "type": "function",
-      "function": {
-        "component": "activity",
         "name": "ASK_CAR_TIP",
         "description": "Explains how to use a vehicle feature that beginner drivers often find confusing, such as defogging, air recirculation, drive modes, regenerative braking, pedal modes, or the child lock.",
         "parameters": {

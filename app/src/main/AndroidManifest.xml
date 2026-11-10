@@ -63,10 +63,6 @@
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
             <intent-filter>
-                <action android:name="RUN_VEHICLE_TUTORIAL" />
-                <category android:name="android.intent.category.DEFAULT" />
-            </intent-filter>
-            <intent-filter>
                 <action android:name="ASK_CAR_TIP" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>

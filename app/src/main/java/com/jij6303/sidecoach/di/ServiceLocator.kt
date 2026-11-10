@@ -23,8 +23,6 @@ import com.jij6303.sidecoach.domain.report.Grade
 import com.jij6303.sidecoach.domain.situation.SituationType
 import com.jij6303.sidecoach.domain.tips.CarTip
 import com.jij6303.sidecoach.domain.tips.CarTipSpeaker
-import com.jij6303.sidecoach.domain.tutorial.TutorialController
-import com.jij6303.sidecoach.domain.tutorial.TutorialMission
 import com.jij6303.sidecoach.domain.detect.BlinkerOmissionDetector
 import com.jij6303.sidecoach.domain.detect.HardBrakeDetector
 import com.jij6303.sidecoach.domain.trip.TripRecorder
@@ -89,8 +87,6 @@ object ServiceLocator {
 
     val fakeUx: FakeUxRestrictionSource by lazy { FakeUxRestrictionSource() }
 
-    lateinit var tutorial: TutorialController
-        private set
     lateinit var tipSpeaker: CarTipSpeaker
         private set
 
@@ -128,7 +124,6 @@ object ServiceLocator {
         fakeRoute = FakeRouteNaviEventSource(drivingStateRepository.updates, clock)
         naviEventSource = fakeRoute
         sessionStore = SessionStore(context)
-        tutorial = TutorialController(drivingStateRepository.updates, clock)
         tipSpeaker = CarTipSpeaker(clock)
         coachingPipeline = CoachingPipeline(
             updates = drivingStateRepository.updates,
@@ -154,13 +149,6 @@ object ServiceLocator {
                 MessageCatalog.preview(SituationType.SCHOOL_ZONE) to R.raw.preview_school_zone,
                 MessageCatalog.preview(SituationType.UNPROTECTED_LEFT) to R.raw.preview_unprotected_left,
                 MessageCatalog.preview(SituationType.MERGE) to R.raw.preview_merge,
-                MessageCatalog.tutorialInstruction(TutorialMission.LEFT_SIGNAL, afterSuccess = false) to R.raw.tutorial_left_signal,
-                MessageCatalog.tutorialInstruction(TutorialMission.LEFT_SIGNAL, afterSuccess = true) to R.raw.tutorial_left_signal_next,
-                MessageCatalog.tutorialInstruction(TutorialMission.RIGHT_SIGNAL, afterSuccess = false) to R.raw.tutorial_right_signal,
-                MessageCatalog.tutorialInstruction(TutorialMission.RIGHT_SIGNAL, afterSuccess = true) to R.raw.tutorial_right_signal_next,
-                MessageCatalog.tutorialInstruction(TutorialMission.BRAKE, afterSuccess = false) to R.raw.tutorial_brake,
-                MessageCatalog.tutorialInstruction(TutorialMission.BRAKE, afterSuccess = true) to R.raw.tutorial_brake_next,
-                MessageCatalog.tutorialDone() to R.raw.tutorial_done,
                 CarTip.WINDSHIELD_FOG.spoken to R.raw.tip_windshield_fog,
                 CarTip.REAR_WINDOW_FOG.spoken to R.raw.tip_rear_window_fog,
                 CarTip.RECIRCULATION.spoken to R.raw.tip_recirculation,
@@ -191,7 +179,7 @@ object ServiceLocator {
         restoreSession()
         drivingStateRepository.start(appScope)
         coachingPipeline.start(appScope)
-        voiceCoach.start(appScope, merge(coachingPipeline.messages, tutorial.messages, tipSpeaker.messages))
+        voiceCoach.start(appScope, merge(coachingPipeline.messages, tipSpeaker.messages))
     }
 
     /**
@@ -212,7 +200,6 @@ object ServiceLocator {
     }
 
     fun stopCoaching() {
-        tutorial.stop()
         voiceCoach.stop()
         coachingPipeline.stop()
         drivingStateRepository.stop()

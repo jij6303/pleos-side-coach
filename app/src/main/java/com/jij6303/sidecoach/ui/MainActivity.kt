@@ -27,18 +27,14 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.jij6303.sidecoach.data.vehicle.SignalKind
-import com.jij6303.sidecoach.data.vehicle.TurnSignalState
 import com.jij6303.sidecoach.di.ServiceLocator
 import com.jij6303.sidecoach.service.CoachingService
 import com.jij6303.sidecoach.ui.dashboard.DashboardScreen
 import com.jij6303.sidecoach.ui.driving.DrivingScreen
 import com.jij6303.sidecoach.ui.report.ReportScreen
-import com.jij6303.sidecoach.ui.tutorial.TutorialScreen
 import com.jij6303.sidecoach.ui.tips.CarTipsScreen
 import com.jij6303.sidecoach.domain.tips.CarTip
 import kotlinx.coroutines.flow.MutableStateFlow
-import com.jij6303.sidecoach.domain.tutorial.TutorialMission
 import androidx.compose.runtime.LaunchedEffect
 import com.jij6303.sidecoach.ui.theme.SideCoachTheme
 
@@ -46,7 +42,6 @@ class MainActivity : ComponentActivity() {
 
     private val repository get() = ServiceLocator.drivingStateRepository
     private val pipeline get() = ServiceLocator.coachingPipeline
-    private val tutorial get() = ServiceLocator.tutorial
 
     /** 열려 있는 도움말 항목. null이면 도움말 화면이 닫혀 있다. */
     private val openTip = MutableStateFlow<CarTip?>(null)
@@ -61,7 +56,6 @@ class MainActivity : ComponentActivity() {
                     ServiceLocator.uiModeSource.first()
                 }
             },
-            startTutorial = { startTutorial(repository.snapshot.value.unavailable.keys) },
             speakTip = ServiceLocator.tipSpeaker::speak,
             openTip = { openTip.value = it },
         )
@@ -81,12 +75,6 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         handleGleo(intent)
-    }
-
-    /** 받을 수 없는 신호의 미션은 빼고 시작한다 (dev-architecture 4.6). */
-    private fun startTutorial(unavailable: Set<SignalKind>) {
-        val missions = TutorialMission.entries.filter { it.signal !in unavailable }
-        tutorial.start(ServiceLocator.appScope, missions)
     }
 
     /** 런타임 승인이 필요한 권한을 요청하고, 결과가 오면 차량 신호 구독을 다시 건다. */
@@ -115,12 +103,6 @@ class MainActivity : ComponentActivity() {
             }
         }
         onBackPressedDispatcher.addCallback(this, closeReport)
-        val closeTutorial = object : OnBackPressedCallback(false) {
-            override fun handleOnBackPressed() {
-                tutorial.stop()
-            }
-        }
-        onBackPressedDispatcher.addCallback(this, closeTutorial)
         val closeTips = object : OnBackPressedCallback(false) {
             override fun handleOnBackPressed() {
                 openTip.value = null
@@ -138,18 +120,12 @@ class MainActivity : ComponentActivity() {
                 // 성적표는 정차(P단, 규제 없음)일 때만 보여준다 (dev-architecture 5.2)
                 val shownReport = report?.takeIf { uiMode == UiMode.PARKED_FULL }
                 closeReport.isEnabled = shownReport != null
-                val tutorialState by tutorial.state.collectAsStateWithLifecycle()
-                val shownTutorial = tutorialState?.takeIf { uiMode == UiMode.PARKED_FULL && shownReport == null }
-                closeTutorial.isEnabled = shownTutorial != null
                 val tip by openTip.collectAsStateWithLifecycle()
-                val shownTip = tip?.takeIf { uiMode == UiMode.PARKED_FULL && shownReport == null && shownTutorial == null }
+                val shownTip = tip?.takeIf { uiMode == UiMode.PARKED_FULL && shownReport == null }
                 closeTips.isEnabled = shownTip != null
-                // P단을 벗어나면(주행 규제 등) 튜토리얼·도움말을 닫는다 (dev-architecture 5.2)
+                // P단을 벗어나면(주행 규제 등) 도움말을 닫는다 (dev-architecture 5.2)
                 LaunchedEffect(uiMode) {
-                    if (uiMode != UiMode.PARKED_FULL) {
-                        tutorial.stop()
-                        openTip.value = null
-                    }
+                    if (uiMode != UiMode.PARKED_FULL) openTip.value = null
                 }
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     // 화면 전환에 애니메이션을 넣지 않는다 (주행 중 애니메이션 금지)
@@ -163,14 +139,6 @@ class MainActivity : ComponentActivity() {
                             report = shownReport,
                             onClose = pipeline::dismissReport,
                             modifier = Modifier.padding(innerPadding),
-                        )
-                        UiMode.PARKED_FULL if shownTutorial != null -> TutorialScreen(
-                            state = shownTutorial,
-                            onSkip = { tutorial.skip(ServiceLocator.appScope) },
-                            onClose = tutorial::stop,
-                            modifier = Modifier.padding(innerPadding),
-                            cameraPopup = snapshot.turnSignal == TurnSignalState.LEFT ||
-                                snapshot.turnSignal == TurnSignalState.RIGHT,
                         )
                         UiMode.PARKED_FULL if shownTip != null -> CarTipsScreen(
                             selected = shownTip,
@@ -186,11 +154,6 @@ class MainActivity : ComponentActivity() {
                             usingFake = ServiceLocator.useFakeVehicle,
                             demoRoute = ServiceLocator.naviEventSource.isDemo,
                             modifier = Modifier.padding(innerPadding),
-                            onStartTutorial = if (uiMode == UiMode.PARKED_FULL) {
-                                { startTutorial(snapshot.unavailable.keys) }
-                            } else {
-                                null
-                            },
                             onOpenTips = if (uiMode == UiMode.PARKED_FULL) {
                                 { openTip.value = CarTip.entries.first() }
                             } else {

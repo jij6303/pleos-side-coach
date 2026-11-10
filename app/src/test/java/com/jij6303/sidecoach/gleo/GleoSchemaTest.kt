@@ -29,7 +29,7 @@ class GleoSchemaTest {
     @Test
     fun `선언한 액션은 모두 코드에서 처리한다`() {
         assertEquals(
-            setOf(GleoContract.START_DRIVING_COACH, GleoContract.RUN_VEHICLE_TUTORIAL, GleoContract.ASK_CAR_TIP),
+            setOf(GleoContract.START_DRIVING_COACH, GleoContract.ASK_CAR_TIP),
             functions.map { it.getString("name") }.toSet(),
         )
         functions.forEach { assertEquals("activity", it.getString("component")) }

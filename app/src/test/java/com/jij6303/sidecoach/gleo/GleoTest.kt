@@ -49,7 +49,6 @@ class GleoTest {
     // ── 명령 처리 ──
 
     private var coachingStarted = false
-    private var tutorialStarted = false
     private var mode: UiMode? = UiMode.PARKED_FULL
 
     private var spokenTip: CarTip? = null
@@ -58,7 +57,6 @@ class GleoTest {
     private val handler = GleoActionHandler(
         startCoaching = { coachingStarted = true },
         currentMode = { mode },
-        startTutorial = { tutorialStarted = true },
         speakTip = { spokenTip = it },
         openTip = { openedTip = it },
     )
@@ -72,19 +70,8 @@ class GleoTest {
     }
 
     @Test
-    fun `P단이면 튜토리얼을 열고 success`() = runTest {
-        val r = handler.handle("RUN_VEHICLE_TUTORIAL", emptyMap())!!
-        assertTrue(tutorialStarted)
-        assertEquals(GleoResponse.Status.SUCCESS, r.status)
-    }
-
-    @Test
-    fun `주행 중이거나 상태를 모르면 튜토리얼은 fail`() = runTest {
-        mode = UiMode.DRIVING_VOICE
-        assertEquals(GleoResponse.Status.FAIL, handler.handle("RUN_VEHICLE_TUTORIAL", emptyMap())!!.status)
-        mode = null
-        assertEquals(GleoResponse.Status.FAIL, handler.handle("RUN_VEHICLE_TUTORIAL", emptyMap())!!.status)
-        assertFalse(tutorialStarted)
+    fun `삭제한 튜토리얼 액션은 처리하지 않는다`() = runTest {
+        assertNull(handler.handle("RUN_VEHICLE_TUTORIAL", emptyMap()))
     }
 
     @Test

@@ -48,7 +48,6 @@ fun DrivingScreen(
         CoachType.PRAISE -> signal.praise to "칭찬"
         CoachType.PREVIEW -> signal.neutral to "곧 만나요"
         CoachType.REPORT -> signal.praise to "성적표"
-        CoachType.TUTORIAL -> signal.neutral to "튜토리얼"
         CoachType.TIP -> signal.neutral to "도움말"
         null -> signal.neutral to "코칭 중"
     }

@@ -11,7 +11,6 @@ class GleoActionHandler(
     private val startCoaching: () -> Unit,
     /** 차량 상태가 들어온 뒤의 화면 모드. 끝내 모르면 null. */
     private val currentMode: suspend () -> UiMode?,
-    private val startTutorial: () -> Unit,
     /** 도움말을 음성으로 말한다. */
     private val speakTip: (CarTip) -> Unit = {},
     /** 정차 중일 때 도움말 화면을 연다. */
@@ -19,7 +18,6 @@ class GleoActionHandler(
 ) {
     suspend fun handle(action: String?, params: Map<String, String>): GleoResponse? = when (action) {
         GleoContract.START_DRIVING_COACH -> startCoach()
-        GleoContract.RUN_VEHICLE_TUTORIAL -> runTutorial()
         GleoContract.ASK_CAR_TIP -> askTip(params)
         else -> null
     }
@@ -30,23 +28,6 @@ class GleoActionHandler(
             functionName = GleoContract.START_DRIVING_COACH,
             status = GleoResponse.Status.SUCCESS,
             message = "The driving coach session has started.",
-        )
-    }
-
-    private suspend fun runTutorial(): GleoResponse {
-        // 주행 중에는 튜토리얼에 들어갈 수 없다 (dev-architecture 5.2)
-        if (currentMode() != UiMode.PARKED_FULL) {
-            return GleoResponse(
-                functionName = GleoContract.RUN_VEHICLE_TUTORIAL,
-                status = GleoResponse.Status.FAIL,
-                message = "The tutorial is available only while the vehicle is parked.",
-            )
-        }
-        startTutorial()
-        return GleoResponse(
-            functionName = GleoContract.RUN_VEHICLE_TUTORIAL,
-            status = GleoResponse.Status.SUCCESS,
-            message = "The vehicle tutorial has been opened.",
         )
     }
 

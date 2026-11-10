@@ -42,7 +42,6 @@ fun DashboardScreen(
     usingFake: Boolean,
     modifier: Modifier = Modifier,
     demoRoute: Boolean = false,
-    onStartTutorial: (() -> Unit)? = null,
     onOpenTips: (() -> Unit)? = null,
 ) {
     BoxWithConstraints(
@@ -58,7 +57,7 @@ fun DashboardScreen(
                 .padding(32.dp),
             verticalArrangement = Arrangement.spacedBy(Gap),
         ) {
-            DashboardHeader(usingFake, demoRoute, onStartTutorial, onOpenTips)
+            DashboardHeader(usingFake, demoRoute, onOpenTips)
             if (wide) {
                 Row(horizontalArrangement = Arrangement.spacedBy(Gap)) {
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Gap)) {
