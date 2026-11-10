@@ -26,9 +26,9 @@ import com.jij6303.sidecoach.domain.coach.CoachMessage
 import com.jij6303.sidecoach.domain.coach.CoachType
 import com.jij6303.sidecoach.domain.trip.TripStats
 import com.jij6303.sidecoach.ui.theme.SideCoachTheme
+import com.jij6303.sidecoach.ui.theme.WIDE_MIN_DP
 
 private val Gap = 20.dp
-private const val WIDE_MIN_DP = 840
 
 /**
  * 메인 대시보드: 코칭 카드, 차량 상태, 주행 통계.

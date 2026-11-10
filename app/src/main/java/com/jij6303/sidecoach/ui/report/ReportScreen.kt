@@ -33,11 +33,11 @@ import com.jij6303.sidecoach.ui.dashboard.Chip
 import com.jij6303.sidecoach.ui.dashboard.StatTile
 import com.jij6303.sidecoach.ui.dashboard.percent
 import com.jij6303.sidecoach.ui.theme.SideCoachTheme
+import com.jij6303.sidecoach.ui.theme.WIDE_MIN_DP
 import java.util.Locale
 import kotlin.math.roundToInt
 
 private val Gap = 20.dp
-private const val WIDE_MIN_DP = 840
 
 /**
  * 주행 후 성적표 (concept ⑤, dev-architecture 5.2 PARKED_FULL 전용).

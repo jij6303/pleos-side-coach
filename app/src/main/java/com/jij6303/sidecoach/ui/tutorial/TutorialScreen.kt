@@ -31,9 +31,9 @@ import com.jij6303.sidecoach.domain.tutorial.TutorialMission
 import com.jij6303.sidecoach.domain.tutorial.TutorialState
 import com.jij6303.sidecoach.ui.dashboard.Chip
 import com.jij6303.sidecoach.ui.theme.SideCoachTheme
+import com.jij6303.sidecoach.ui.theme.WIDE_MIN_DP
 
 private val Gap = 20.dp
-private const val WIDE_MIN_DP = 840
 
 /**
  * 깜빡이를 켜면 시스템 측후방 카메라 팝업(ai.umos.car.evs)이 앱 창 왼쪽 위를 덮는다.
