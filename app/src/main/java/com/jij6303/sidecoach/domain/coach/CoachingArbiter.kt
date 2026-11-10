@@ -6,21 +6,16 @@ package com.jij6303.sidecoach.domain.coach
  * 시간은 인자로 받는다. [submit]으로 후보를 넣고, [next]로 지금 말할 메시지를 꺼낸다.
  * [next]는 새 스냅샷이 들어올 때마다 호출되므로, 간격 때문에 대기 중인 메시지도 다음 호출 때 나간다.
  */
-class CoachingArbiter(
-    level: ExperienceLevel = ExperienceLevel.BEGINNER,
-    private val config: Config = Config(),
-) {
+class CoachingArbiter(private val config: Config = Config()) {
     /** 💭 설계 가정. */
     data class Config(
         val minGapMs: Long = 6_000,
         val minGapHighMs: Long = 3_000,
         val queueTtlMs: Long = 4_000,
-        val blinkerCapBeginner: Int = 5,
-        val blinkerCapIntermediate: Int = 2,
+        /** 교습 앱이라 숙련도 구분 없이 한 기준만 둔다 (#27). */
+        val blinkerCap: Int = 5,
         val praiseCap: Int = 3,
     )
-
-    var level: ExperienceLevel = level
 
     private val queue = mutableListOf<CoachMessage>()
     private val spokenCount = mutableMapOf<CoachType, Int>()
@@ -63,10 +58,7 @@ class CoachingArbiter(
 
     private fun reachedCap(type: CoachType): Boolean {
         val cap = when (type) {
-            CoachType.BLINKER_OMISSION -> when (level) {
-                ExperienceLevel.BEGINNER -> config.blinkerCapBeginner
-                ExperienceLevel.INTERMEDIATE -> config.blinkerCapIntermediate
-            }
+            CoachType.BLINKER_OMISSION -> config.blinkerCap
             CoachType.PRAISE -> config.praiseCap
             else -> return false
         }

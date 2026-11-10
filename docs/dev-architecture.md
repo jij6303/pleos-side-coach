@@ -32,7 +32,7 @@ Pleos Connect Emulator v2.1.0, Vehicle SDK 2.3.2, Vehicle Service 2.3.22, 공식
 | **TTS 엔진** | 실측(#15): 표준 Android TTS 엔진이 **없음**. `TTS_SERVICE`를 가진 서비스는 Pleos 자체 `ai.pleos.playground.caas/.service.speech.SpeechService` 하나뿐인데, intent-filter에 `CATEGORY_DEFAULT`가 없어 프레임워크 엔진 조회에 안 잡히고(`TextToSpeech` init `status=-1`), 패키지를 직접 지정해도 연결 실패. `tts_default_synth`도 비어 있음 | 정해진 코칭 문구는 **녹음 클립(res/raw)** 을 `MediaPlayer`로 재생(`ClipVoiceOutput`), 클립 없는 문구만 Android TTS로 fallback. Pleos TTS SDK가 나오면 교체 |
 | **주행 규제** | 실측(#17): 문서의 `cmd hmg_car_service ... driving_regulation` 명령은 **이 에뮬레이터에 없음**(`Can't find service`). 규제는 콘솔 기어로 바뀜: P → parked(DO 불필요, `0x0`), 그 외 기어 → idling/moving(DO 필요, `0x50` = NO_VIDEO \| NO_SETUP). `dumpsys car_service --services CarUxRestrictionsManagerService`로 상태별 설정 확인 가능 | T8은 콘솔 기어 P↔D로 테스트. 에뮬레이터에서는 IDLE_LIMITED(규제 없음 + P 아님)가 나오지 않음 |
 | **Foreground Service** | 실측(#17): `specialUse` 타입 FGS 시작·유지 확인(`types=40000000`). Back으로 앱을 숨긴 상태에서도 급제동 음성 코칭 정상 | 코칭 수명은 `CoachingService`가 관리 |
-| **시스템 UI** | 깜빡이를 켜면 **시스템 측후방 카메라 팝업**이 앱 화면 위에 뜸 | 주행 중 화면이 가려질 수 있음 → 음성 중심 코칭 설계를 유지 |
+| **시스템 UI** | 깜빡이를 켜면 **시스템 측후방 카메라 팝업**이 앱 화면 위에 뜸. 실측(#27): `ai.umos.car.evs` 창, 좌·우 모두 앱 창 기준 왼쪽 위 (0,0)~(754,424)dp, 깜빡이를 끄면 사라짐 (앱 창은 1682×1210dp, 160dpi) | 주행 중 화면이 가려질 수 있음 → 음성 중심 코칭 설계를 유지. 튜토리얼은 깜빡이가 켜져 있는 동안 미션 카드를 팝업 아래로 내림(#27) |
 
 ### SDK 제공 상태 (Pleos Playground, 2026-11-09)
 | SDK | 상태 | 의미 | 대응 |
@@ -388,7 +388,7 @@ candidate(type, d, key):
 우선순위: HARD_BRAKE(안전) > PREVIEW(상황 예고) > SPEEDING > BLINKER_OMISSION > PRAISE
 규칙 (💭):
   - 발화 사이 최소 간격 6초 (예외: HIGH 우선순위는 3초)
-  - 유형별 주행당 상한: 초급 BLINKER 5회 / 중급 2회, PRAISE 주행당 3회
+  - 유형별 주행당 상한: BLINKER 5회, PRAISE 주행당 3회 (**#27: 숙련도 구분 제거.** 교습 앱이라 한 기준만 둔다)
   - 대기열 TTL 4초: 시간이 지난 교정 메시지는 버림 (상황 예고는 거리 조건으로 다시 판단)
   - Gleo 음성 세션 중이거나 포커스를 잃은 상태에서는 보류
   - 칭찬 트리거: 깜빡이를 켜고 차선 변경을 3회 연속 완료했을 때
@@ -560,7 +560,7 @@ val req = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_D
 - `version`은 App Market에 등록한 버전과 맞춰야 한다.
 - `parameters.properties`가 빈 객체여도 검토를 통과하는지 확인해야 한다.
 
-> **구현(#25) 기준 변경**: MVP schema는 activity 액션 2개(`START_DRIVING_COACH`, `RUN_VEHICLE_TUTORIAL`)만 선언한다. `packageName`은 `com.jij6303.sidecoach`, `version`은 앱 versionName(`1.0`). `RUN_VEHICLE_TUTORIAL`은 실제 미션과 맞지 않는 `targetComponent` 파라미터를 뺐다. `EXPLAIN_CURRENT_TRAFFIC_RULE`(service)은 수신 검증 후 2차에 추가. 실측: 설치 시 Gleo(GAA)가 schema.json을 읽는 로그 확인.
+> **구현(#25·#27) 기준 변경**: #27에서 `START_DRIVING_COACH`의 `experienceLevel` 파라미터를 뺐다(숙련도 구분 제거, 파라미터 없음). MVP schema는 activity 액션 2개(`START_DRIVING_COACH`, `RUN_VEHICLE_TUTORIAL`)만 선언한다. `packageName`은 `com.jij6303.sidecoach`, `version`은 앱 versionName(`1.0`). `RUN_VEHICLE_TUTORIAL`은 실제 미션과 맞지 않는 `targetComponent` 파라미터를 뺐다. `EXPLAIN_CURRENT_TRAFFIC_RULE`(service)은 수신 검증 후 2차에 추가. 실측: 설치 시 Gleo(GAA)가 schema.json을 읽는 로그 확인.
 
 ### 7.2 Intent 수신
 

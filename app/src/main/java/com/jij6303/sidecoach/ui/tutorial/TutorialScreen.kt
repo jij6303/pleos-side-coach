@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -35,6 +36,15 @@ private val Gap = 20.dp
 private const val WIDE_MIN_DP = 840
 
 /**
+ * 깜빡이를 켜면 시스템 측후방 카메라 팝업(ai.umos.car.evs)이 앱 창 왼쪽 위를 덮는다.
+ * 에뮬레이터 실측(#27): 좌·우 깜빡이 모두 앱 창 기준 (0,0)~(754,424)dp, 깜빡이를 끄면 사라짐.
+ */
+private val CameraPopupHeight = 424.dp
+private val ScreenPadding = 32.dp
+/** 헤더(64) + 간격(20) + 화면 여백(32). 팝업 아래로 내릴 때 이만큼은 이미 내려와 있다. */
+private val HeaderBlock = 116.dp
+
+/**
  * 내 차 익히기 (concept ③, PARKED_FULL 전용).
  * 지시대로 조작하면 차가 확인해 자동으로 다음 미션으로 넘어간다. 애니메이션 없음.
  */
@@ -44,6 +54,8 @@ fun TutorialScreen(
     onSkip: () -> Unit,
     onClose: () -> Unit,
     modifier: Modifier = Modifier,
+    /** 깜빡이가 켜져 카메라 팝업이 떠 있으면 true. 미션 내용을 팝업 밖으로 옮긴다. */
+    cameraPopup: Boolean = false,
 ) {
     BoxWithConstraints(
         modifier = modifier
@@ -55,7 +67,7 @@ fun TutorialScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(32.dp),
+                .padding(ScreenPadding),
             verticalArrangement = Arrangement.spacedBy(Gap),
         ) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -75,12 +87,19 @@ fun TutorialScreen(
                     }
                 }
             }
+            // 깜빡이를 켜면 카메라 팝업이 왼쪽 위를 덮으므로 미션 카드만 팝업 아래로 내린다.
+            // 넓은 화면에서 미션 목록은 팝업 오른쪽이라 가려지지 않으므로 그 자리에 둔다.
+            val popupGap = CameraPopupHeight - HeaderBlock + Gap
             if (wide) {
                 Row(horizontalArrangement = Arrangement.spacedBy(Gap)) {
-                    CurrentCard(state, onSkip, Modifier.weight(1.4f))
+                    Column(Modifier.weight(1.4f)) {
+                        if (cameraPopup) Spacer(Modifier.height(popupGap))
+                        CurrentCard(state, onSkip, Modifier.fillMaxWidth())
+                    }
                     MissionList(state, Modifier.weight(1f))
                 }
             } else {
+                if (cameraPopup) Spacer(Modifier.height(popupGap))
                 CurrentCard(state, onSkip, Modifier.fillMaxWidth())
                 MissionList(state, Modifier.fillMaxWidth())
             }
@@ -172,6 +191,17 @@ private fun TutorialPreview() {
                 currentIndex = 1,
             ),
             onSkip = {}, onClose = {},
+        )
+    }
+}
+
+@Preview(widthDp = 1682, heightDp = 1210)
+@Composable
+private fun TutorialCameraPopupPreview() {
+    SideCoachTheme {
+        TutorialScreen(
+            state = TutorialState(TutorialMission.entries, setOf(TutorialMission.LEFT_SIGNAL), 1),
+            onSkip = {}, onClose = {}, cameraPopup = true,
         )
     }
 }

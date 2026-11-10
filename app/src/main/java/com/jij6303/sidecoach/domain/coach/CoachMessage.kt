@@ -19,8 +19,6 @@ enum class CoachType(val priority: Int, val high: Boolean) {
     TUTORIAL(priority = 0, high = false),
 }
 
-enum class ExperienceLevel { BEGINNER, INTERMEDIATE }
-
 data class CoachMessage(
     val type: CoachType,
     val text: String,
