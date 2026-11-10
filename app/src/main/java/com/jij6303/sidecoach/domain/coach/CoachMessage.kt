@@ -2,7 +2,6 @@ package com.jij6303.sidecoach.domain.coach
 
 import com.jij6303.sidecoach.domain.report.Grade
 import com.jij6303.sidecoach.domain.situation.SituationType
-import com.jij6303.sidecoach.domain.tutorial.TutorialMission
 
 /** 코칭 유형. [priority]가 클수록 먼저 말한다 (dev-architecture 4.5). */
 enum class CoachType(val priority: Int, val high: Boolean) {
@@ -14,9 +13,6 @@ enum class CoachType(val priority: Int, val high: Boolean) {
 
     /** 주행 종료 후 성적표 요약. 중재자를 거치지 않는다. */
     REPORT(priority = 0, high = false),
-
-    /** 정차 중 튜토리얼 안내. 중재자를 거치지 않는다. */
-    TUTORIAL(priority = 0, high = false),
 
     /** 차량 기능 도움말 음성. 중재자를 거치지 않는다. */
     TIP(priority = 0, high = false),
@@ -44,12 +40,6 @@ object MessageCatalog {
         SituationType.UNPROTECTED_LEFT -> "곧 비보호좌회전이에요. 맞은편 직진 차가 지나간 뒤에 돌아요."
         SituationType.MERGE -> "곧 합류해요. 깜빡이 켜고 가속 차로에서 속도를 맞춰요."
     }
-
-    /** 튜토리얼 지시. [afterSuccess]면 앞 미션 칭찬을 붙여 한 문장으로 말한다. */
-    fun tutorialInstruction(mission: TutorialMission, afterSuccess: Boolean): String =
-        if (afterSuccess) "잘했어요! 다음은 ${mission.instruction}" else mission.instruction
-
-    fun tutorialDone(): String = "튜토리얼 끝! 이제 내 차가 조금 더 익숙해졌죠?"
 
     /** 성적표가 뜰 때 한 문장. */
     fun report(grade: Grade): String = when (grade) {

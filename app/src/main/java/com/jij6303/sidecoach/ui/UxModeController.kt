@@ -8,7 +8,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 
 /** 주행 규제 상태별 화면 모드 (dev-architecture 5.1). */
 enum class UiMode {
-    /** 정차 + P단: 전체 UI (성적표, 튜토리얼, 설정). */
+    /** 정차 + P단: 전체 UI (성적표, 도움말, 설정). */
     PARKED_FULL,
 
     /** 규제는 없지만 P단이 아님 (신호 대기 등): 간단한 상태 화면. */

@@ -394,7 +394,9 @@ candidate(type, d, key):
   - 칭찬 트리거: 깜빡이를 켜고 차선 변경을 3회 연속 완료했을 때
 ```
 
-### 4.6 튜토리얼 판정 (TutorialEngine)
+### 4.6 튜토리얼 판정 (TutorialEngine) — ❌ 제거(#35)
+
+> #35에서 내 차 익히기(튜토리얼) 기능 전체를 뺐다. 에뮬레이터에서 완료할 수 있는 미션이 깜빡이·브레이크뿐이라 효용이 낮음. 아래 표는 조사 기록으로 남긴다.
 
 | 미션 | 완료 조건 | 상태 (실측 반영) |
 |---|---|---|
@@ -560,6 +562,8 @@ val req = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_D
 - `version`은 App Market에 등록한 버전과 맞춰야 한다.
 - `parameters.properties`가 빈 객체여도 검토를 통과하는지 확인해야 한다.
 
+> **구현(#35) 기준 변경**: `RUN_VEHICLE_TUTORIAL` 액션을 삭제했다. 현재 schema는 activity 액션 2개(`START_DRIVING_COACH`, `ASK_CAR_TIP`). 아래 7.1~7.2와 8장 예시의 `RUN_VEHICLE_TUTORIAL`은 과거 설계다.
+>
 > **구현(#25·#27·#29) 기준 변경**: #29에서 세 번째 액션 `ASK_CAR_TIP`(activity, `topic` 필수: WINDSHIELD_FOG, REAR_WINDOW_FOG, RECIRCULATION, FRESH_AIR, AIR_CONDITIONER, DRIVE_MODE, REGEN_BRAKING, PEDAL_MODE, CHILD_LOCK)을 추가했다. 앱이 직접 음성으로 답하고 응답은 `mode: silent`. 주행 중에는 화면을 열지 않는다. #27에서 `START_DRIVING_COACH`의 `experienceLevel` 파라미터를 뺐다(숙련도 구분 제거, 파라미터 없음). MVP schema는 activity 액션 2개(`START_DRIVING_COACH`, `RUN_VEHICLE_TUTORIAL`)만 선언한다. `packageName`은 `com.jij6303.sidecoach`, `version`은 앱 versionName(`1.0`). `RUN_VEHICLE_TUTORIAL`은 실제 미션과 맞지 않는 `targetComponent` 파라미터를 뺐다. `EXPLAIN_CURRENT_TRAFFIC_RULE`(service)은 수신 검증 후 2차에 추가. 실측: 설치 시 Gleo(GAA)가 schema.json을 읽는 로그 확인.
 
 ### 7.2 Intent 수신
@@ -788,7 +792,7 @@ object GleoCallbackSender {
 | T7 | 상황 예고 | Fake 회전교차로 이벤트 거리 300m → 100m | 300~150m 구간에서 1회만 발화 |
 | T8 | 주행 규제 | driving_regulation on | DrivingScreen 전환, 리포트·튜토리얼 진입 차단, 애니메이션 정지 |
 | T9 | 성적표 | 규제 off + 기어 P | 성적표 표시, 수치가 로그와 일치 |
-| T10 | 튜토리얼 | P단, 미션 HAZARD → 콘솔에서 Flash | ✓ 완료 표시 |
+| ~~T10~~ | ~~튜토리얼~~ | 기능 제거(#35) | — |
 | T11 | Back 키 | 최상단에서 Back | 앱이 숨겨지고 코칭 음성은 계속, 프로세스 유지 |
 | T12 | 포커스 상실 | 코칭 발화 중 다른 앱이 포커스 요청 | 즉시 정지, 메시지 재생 안 함 |
 | T13 | 프로세스 재생성 | `adb shell am kill com.sidecoach` (백그라운드 상태) | Service 재시작 후 세션 복원 |
