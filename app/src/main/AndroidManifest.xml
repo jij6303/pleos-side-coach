@@ -13,6 +13,10 @@
     <!-- AAOS 표준 -->
     <uses-permission android:name="android.car.permission.CAR_POWERTRAIN" />      <!-- GEAR_SELECTION, PARKING_BRAKE_ON -->
     <uses-permission android:name="android.car.permission.CAR_SPEED" />           <!-- PERF_VEHICLE_SPEED -->
+    <!-- 코칭 Foreground Service (Android 14+ FGS 타입 specialUse. 심사 수용 여부는 확인 필요) -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- HAZARD_LIGHTS_STATE에 필요한 CAR_EXTERIOR_LIGHTS는 signature|privileged라 서드파티 앱에 승인되지 않음(에뮬레이터 실측) → 선언하지 않음 -->
 
     <!-- Android 11+ 패키지 가시성: TTS 엔진 서비스를 찾으려면 선언해야 함 (없으면 TextToSpeech init 실패) -->
@@ -54,6 +58,15 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <service
+            android:name=".service.CoachingService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="realtime_driving_coaching" />
+        </service>
     </application>
 
 </manifest>
