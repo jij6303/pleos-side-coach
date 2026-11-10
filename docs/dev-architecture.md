@@ -732,7 +732,7 @@ object GleoCallbackSender {
 | **Back 키 (하위 화면)** | 이전 화면으로 이동하거나 팝업 닫기 | ✅ |
 | **백그라운드 전환** | UI 갱신과 애니메이션 정지. 센서 구독은 Service가 유지하되, 튜토리얼 전용 구독(Safety 등)은 해제 | ✅ 성능 가이드 |
 | **포그라운드 복귀** | `DrivingStateRepository`의 StateFlow로 즉시 최신 상태를 그림. 화면 크기와 방향에 맞춰 레이아웃 재구성 | ✅ |
-| **프로세스 재생성** | `SessionStore`(DataStore)에 저장한 값으로 복원. 저장 항목: `sessionActive`, `level`, `tripId`, 유형별 발화 횟수. Service는 `START_STICKY` | ✅ 가이드: 상태 저장·복원 필수 |
+| **프로세스 재생성** | `SessionStore`에 저장한 값으로 복원. **구현(#31)**: SharedPreferences + JSON. 저장 항목: 주행 통계·칭찬 연속, 유형별 발화 횟수, 진행 중 주행(시간·거리·최고 속도), 예고한 지점, 시연 경로 위치, 안 본 성적표. 5초마다·성적표 생성·코칭 종료 시 저장. 재부팅·30분 초과면 폐기. Service는 `START_STICKY`(크래시 후 약 1초 뒤 재시작 실측) | ✅ 가이드: 상태 저장·복원 필수 |
 | **세션 종료** | 기어 P 상태가 일정 시간(💭 60초) 이상 이어지거나 사용자가 종료하면, 성적표를 생성하고 Service를 stop | 💭 |
 | **Suspend 진입 (IGN OFF 이후)** | ① TTS 즉시 정지 ② 오디오 포커스 반납 ③ 주행 로그 flush ④ 센서 구독 해제 | ✅ Suspend 가이드 |
 | **Suspend 복귀** | 이전 오디오 상태를 자동으로 복원하지 않음. 포커스도 자동으로 다시 요청하지 않음. 세션 재개 여부는 사용자가 결정 | ✅ |

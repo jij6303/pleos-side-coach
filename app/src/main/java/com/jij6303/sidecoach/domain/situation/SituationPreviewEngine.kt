@@ -37,4 +37,12 @@ class SituationPreviewEngine(
     fun reset() {
         announced.clear()
     }
+
+    /** 저장용: 예고한 지점 key → 예고 시각. */
+    fun exportState(): Map<String, Long> = announced.toMap()
+
+    fun restore(state: Map<String, Long>) {
+        announced.clear()
+        announced.putAll(state)
+    }
 }
