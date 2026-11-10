@@ -16,17 +16,28 @@ import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.jij6303.sidecoach.data.vehicle.SignalKind
 import com.jij6303.sidecoach.di.ServiceLocator
 import com.jij6303.sidecoach.service.CoachingService
 import com.jij6303.sidecoach.ui.dashboard.DashboardScreen
 import com.jij6303.sidecoach.ui.driving.DrivingScreen
 import com.jij6303.sidecoach.ui.report.ReportScreen
+import com.jij6303.sidecoach.ui.tutorial.TutorialScreen
+import com.jij6303.sidecoach.domain.tutorial.TutorialMission
+import androidx.compose.runtime.LaunchedEffect
 import com.jij6303.sidecoach.ui.theme.SideCoachTheme
 
 class MainActivity : ComponentActivity() {
 
     private val repository get() = ServiceLocator.drivingStateRepository
     private val pipeline get() = ServiceLocator.coachingPipeline
+    private val tutorial get() = ServiceLocator.tutorial
+
+    /** 받을 수 없는 신호의 미션은 빼고 시작한다 (dev-architecture 4.6). */
+    private fun startTutorial(unavailable: Set<SignalKind>) {
+        val missions = TutorialMission.entries.filter { it.signal !in unavailable }
+        tutorial.start(ServiceLocator.appScope, missions)
+    }
 
     /** 런타임 승인이 필요한 권한을 요청하고, 결과가 오면 차량 신호 구독을 다시 건다. */
     private val carPermissionLauncher =
@@ -54,6 +65,12 @@ class MainActivity : ComponentActivity() {
             }
         }
         onBackPressedDispatcher.addCallback(this, closeReport)
+        val closeTutorial = object : OnBackPressedCallback(false) {
+            override fun handleOnBackPressed() {
+                tutorial.stop()
+            }
+        }
+        onBackPressedDispatcher.addCallback(this, closeTutorial)
 
         setContent {
             SideCoachTheme {
@@ -65,6 +82,13 @@ class MainActivity : ComponentActivity() {
                 // 성적표는 정차(P단, 규제 없음)일 때만 보여준다 (dev-architecture 5.2)
                 val shownReport = report?.takeIf { uiMode == UiMode.PARKED_FULL }
                 closeReport.isEnabled = shownReport != null
+                val tutorialState by tutorial.state.collectAsStateWithLifecycle()
+                val shownTutorial = tutorialState?.takeIf { uiMode == UiMode.PARKED_FULL && shownReport == null }
+                closeTutorial.isEnabled = shownTutorial != null
+                // P단을 벗어나면(주행 규제 등) 튜토리얼을 끝낸다 (dev-architecture 5.2)
+                LaunchedEffect(uiMode) {
+                    if (uiMode != UiMode.PARKED_FULL) tutorial.stop()
+                }
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     // 화면 전환에 애니메이션을 넣지 않는다 (주행 중 애니메이션 금지)
                     when (uiMode) {
@@ -78,7 +102,12 @@ class MainActivity : ComponentActivity() {
                             onClose = pipeline::dismissReport,
                             modifier = Modifier.padding(innerPadding),
                         )
-                        // 튜토리얼 화면이 생기기 전까지는 정차 화면은 대시보드
+                        UiMode.PARKED_FULL if shownTutorial != null -> TutorialScreen(
+                            state = shownTutorial,
+                            onSkip = { tutorial.skip(ServiceLocator.appScope) },
+                            onClose = tutorial::stop,
+                            modifier = Modifier.padding(innerPadding),
+                        )
                         UiMode.IDLE_LIMITED, UiMode.PARKED_FULL -> DashboardScreen(
                             snapshot = snapshot,
                             lastMessage = lastMessage,
@@ -86,6 +115,11 @@ class MainActivity : ComponentActivity() {
                             usingFake = ServiceLocator.useFakeVehicle,
                             demoRoute = ServiceLocator.naviEventSource.isDemo,
                             modifier = Modifier.padding(innerPadding),
+                            onStartTutorial = if (uiMode == UiMode.PARKED_FULL) {
+                                { startTutorial(snapshot.unavailable.keys) }
+                            } else {
+                                null
+                            },
                         )
                     }
                 }

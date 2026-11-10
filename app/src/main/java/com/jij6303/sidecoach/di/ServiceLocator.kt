@@ -20,6 +20,8 @@ import com.jij6303.sidecoach.domain.coach.CoachingPipeline
 import com.jij6303.sidecoach.domain.coach.MessageCatalog
 import com.jij6303.sidecoach.domain.report.Grade
 import com.jij6303.sidecoach.domain.situation.SituationType
+import com.jij6303.sidecoach.domain.tutorial.TutorialController
+import com.jij6303.sidecoach.domain.tutorial.TutorialMission
 import com.jij6303.sidecoach.domain.detect.BlinkerOmissionDetector
 import com.jij6303.sidecoach.domain.detect.HardBrakeDetector
 import com.jij6303.sidecoach.domain.trip.TripRecorder
@@ -37,6 +39,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -71,6 +74,9 @@ object ServiceLocator {
 
     val fakeUx: FakeUxRestrictionSource by lazy { FakeUxRestrictionSource() }
 
+    lateinit var tutorial: TutorialController
+        private set
+
     lateinit var voiceOutput: VoiceOutput
         private set
     lateinit var voiceCoach: VoiceCoach
@@ -103,6 +109,7 @@ object ServiceLocator {
         // 메시지 시각과 같은 시계: 실제 소스는 elapsedRealtime, Fake는 currentTimeMillis
         val clock: () -> Long = if (useFake) System::currentTimeMillis else SystemClock::elapsedRealtime
         naviEventSource = FakeRouteNaviEventSource(drivingStateRepository.updates, clock)
+        tutorial = TutorialController(drivingStateRepository.updates, clock)
         coachingPipeline = CoachingPipeline(
             updates = drivingStateRepository.updates,
             detectors = listOf(BlinkerOmissionDetector(), HardBrakeDetector()),
@@ -125,6 +132,13 @@ object ServiceLocator {
                 MessageCatalog.preview(SituationType.SCHOOL_ZONE) to R.raw.preview_school_zone,
                 MessageCatalog.preview(SituationType.UNPROTECTED_LEFT) to R.raw.preview_unprotected_left,
                 MessageCatalog.preview(SituationType.MERGE) to R.raw.preview_merge,
+                MessageCatalog.tutorialInstruction(TutorialMission.LEFT_SIGNAL, afterSuccess = false) to R.raw.tutorial_left_signal,
+                MessageCatalog.tutorialInstruction(TutorialMission.LEFT_SIGNAL, afterSuccess = true) to R.raw.tutorial_left_signal_next,
+                MessageCatalog.tutorialInstruction(TutorialMission.RIGHT_SIGNAL, afterSuccess = false) to R.raw.tutorial_right_signal,
+                MessageCatalog.tutorialInstruction(TutorialMission.RIGHT_SIGNAL, afterSuccess = true) to R.raw.tutorial_right_signal_next,
+                MessageCatalog.tutorialInstruction(TutorialMission.BRAKE, afterSuccess = false) to R.raw.tutorial_brake,
+                MessageCatalog.tutorialInstruction(TutorialMission.BRAKE, afterSuccess = true) to R.raw.tutorial_brake_next,
+                MessageCatalog.tutorialDone() to R.raw.tutorial_done,
                 MessageCatalog.report(Grade.GREAT) to R.raw.report_great,
                 MessageCatalog.report(Grade.GOOD) to R.raw.report_good,
                 MessageCatalog.report(Grade.PRACTICE) to R.raw.report_practice,
@@ -145,10 +159,11 @@ object ServiceLocator {
     fun startCoaching() {
         drivingStateRepository.start(appScope)
         coachingPipeline.start(appScope)
-        voiceCoach.start(appScope, coachingPipeline.messages)
+        voiceCoach.start(appScope, merge(coachingPipeline.messages, tutorial.messages))
     }
 
     fun stopCoaching() {
+        tutorial.stop()
         voiceCoach.stop()
         coachingPipeline.stop()
         drivingStateRepository.stop()

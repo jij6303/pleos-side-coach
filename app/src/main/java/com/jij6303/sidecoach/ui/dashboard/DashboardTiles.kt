@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -85,6 +86,7 @@ fun CoachingCard(message: CoachMessage?, modifier: Modifier = Modifier) {
         CoachType.SPEEDING -> signal.brake to "과속"
         CoachType.PREVIEW -> signal.neutral to "상황 예고"
         CoachType.REPORT -> signal.praise to "성적표"
+        CoachType.TUTORIAL -> signal.neutral to "튜토리얼"
         null -> signal.neutral to "코칭 대기"
     }
     Surface(modifier = modifier, shape = TileShape, color = tone.container) {
@@ -331,7 +333,12 @@ fun StatTile(
 // ───────────────────────── 헤더 ─────────────────────────
 
 @Composable
-fun DashboardHeader(usingFake: Boolean, demoRoute: Boolean = false, modifier: Modifier = Modifier) {
+fun DashboardHeader(
+    usingFake: Boolean,
+    demoRoute: Boolean = false,
+    onStartTutorial: (() -> Unit)? = null,
+    modifier: Modifier = Modifier,
+) {
     val signal = SideCoachTheme.signal
     Row(
         modifier = modifier.fillMaxWidth(),
@@ -339,7 +346,13 @@ fun DashboardHeader(usingFake: Boolean, demoRoute: Boolean = false, modifier: Mo
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
         Text("초보운전탈출", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onBackground)
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+            // 정차(P단)일 때만 버튼을 보인다 (주행 중 진입 차단, dev-architecture 5.2)
+            if (onStartTutorial != null) {
+                Button(onClick = onStartTutorial, modifier = Modifier.height(56.dp)) {
+                    Text("내 차 익히기", style = MaterialTheme.typography.titleMedium)
+                }
+            }
             // 상황 예고가 가짜 경로 기반이면 시연임을 밝힌다
             if (demoRoute) Chip(text = "시연 경로", tone = signal.neutral)
             Chip(
