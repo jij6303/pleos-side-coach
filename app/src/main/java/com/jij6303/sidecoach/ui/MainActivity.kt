@@ -35,6 +35,9 @@ import com.jij6303.sidecoach.ui.dashboard.DashboardScreen
 import com.jij6303.sidecoach.ui.driving.DrivingScreen
 import com.jij6303.sidecoach.ui.report.ReportScreen
 import com.jij6303.sidecoach.ui.tutorial.TutorialScreen
+import com.jij6303.sidecoach.ui.tips.CarTipsScreen
+import com.jij6303.sidecoach.domain.tips.CarTip
+import kotlinx.coroutines.flow.MutableStateFlow
 import com.jij6303.sidecoach.domain.tutorial.TutorialMission
 import androidx.compose.runtime.LaunchedEffect
 import com.jij6303.sidecoach.ui.theme.SideCoachTheme
@@ -44,6 +47,9 @@ class MainActivity : ComponentActivity() {
     private val repository get() = ServiceLocator.drivingStateRepository
     private val pipeline get() = ServiceLocator.coachingPipeline
     private val tutorial get() = ServiceLocator.tutorial
+
+    /** 열려 있는 도움말 항목. null이면 도움말 화면이 닫혀 있다. */
+    private val openTip = MutableStateFlow<CarTip?>(null)
 
     private val gleoHandler by lazy {
         GleoActionHandler(
@@ -56,6 +62,8 @@ class MainActivity : ComponentActivity() {
                 }
             },
             startTutorial = { startTutorial(repository.snapshot.value.unavailable.keys) },
+            speakTip = ServiceLocator.tipSpeaker::speak,
+            openTip = { openTip.value = it },
         )
     }
 
@@ -113,6 +121,12 @@ class MainActivity : ComponentActivity() {
             }
         }
         onBackPressedDispatcher.addCallback(this, closeTutorial)
+        val closeTips = object : OnBackPressedCallback(false) {
+            override fun handleOnBackPressed() {
+                openTip.value = null
+            }
+        }
+        onBackPressedDispatcher.addCallback(this, closeTips)
 
         setContent {
             SideCoachTheme {
@@ -127,9 +141,15 @@ class MainActivity : ComponentActivity() {
                 val tutorialState by tutorial.state.collectAsStateWithLifecycle()
                 val shownTutorial = tutorialState?.takeIf { uiMode == UiMode.PARKED_FULL && shownReport == null }
                 closeTutorial.isEnabled = shownTutorial != null
-                // P단을 벗어나면(주행 규제 등) 튜토리얼을 끝낸다 (dev-architecture 5.2)
+                val tip by openTip.collectAsStateWithLifecycle()
+                val shownTip = tip?.takeIf { uiMode == UiMode.PARKED_FULL && shownReport == null && shownTutorial == null }
+                closeTips.isEnabled = shownTip != null
+                // P단을 벗어나면(주행 규제 등) 튜토리얼·도움말을 닫는다 (dev-architecture 5.2)
                 LaunchedEffect(uiMode) {
-                    if (uiMode != UiMode.PARKED_FULL) tutorial.stop()
+                    if (uiMode != UiMode.PARKED_FULL) {
+                        tutorial.stop()
+                        openTip.value = null
+                    }
                 }
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     // 화면 전환에 애니메이션을 넣지 않는다 (주행 중 애니메이션 금지)
@@ -152,6 +172,13 @@ class MainActivity : ComponentActivity() {
                             cameraPopup = snapshot.turnSignal == TurnSignalState.LEFT ||
                                 snapshot.turnSignal == TurnSignalState.RIGHT,
                         )
+                        UiMode.PARKED_FULL if shownTip != null -> CarTipsScreen(
+                            selected = shownTip,
+                            onSelect = { openTip.value = it },
+                            onListen = ServiceLocator.tipSpeaker::speak,
+                            onClose = { openTip.value = null },
+                            modifier = Modifier.padding(innerPadding),
+                        )
                         UiMode.IDLE_LIMITED, UiMode.PARKED_FULL -> DashboardScreen(
                             snapshot = snapshot,
                             lastMessage = lastMessage,
@@ -161,6 +188,11 @@ class MainActivity : ComponentActivity() {
                             modifier = Modifier.padding(innerPadding),
                             onStartTutorial = if (uiMode == UiMode.PARKED_FULL) {
                                 { startTutorial(snapshot.unavailable.keys) }
+                            } else {
+                                null
+                            },
+                            onOpenTips = if (uiMode == UiMode.PARKED_FULL) {
+                                { openTip.value = CarTip.entries.first() }
                             } else {
                                 null
                             },

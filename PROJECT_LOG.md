@@ -19,14 +19,14 @@ pleos-side-coach/
 ├── app/                    # Android 앱 모듈 (Compose, 패키지 com.jij6303.sidecoach)
 │   └── src/main/java/com/jij6303/sidecoach/
 │       ├── data/vehicle/   # VehicleDataSource 인터페이스 + Pleos SDK·AAOS·Fake 구현
-│       ├── domain/         # DrivingSnapshot, DrivingStateRepository, 디텍터·중재자·주행(trip/)·성적표(report/)·상황 예고(situation/)·튜토리얼(tutorial/) (순수 Kotlin)
+│       ├── domain/         # DrivingSnapshot, DrivingStateRepository, 디텍터·중재자·주행(trip/)·성적표(report/)·상황 예고(situation/)·튜토리얼(tutorial/)·도움말(tips/) (순수 Kotlin)
 │       ├── gleo/           # Gleo 음성 명령: 파싱·처리·응답 (schema.json은 assets/)
 │       ├── di/             # ServiceLocator (수동 DI, Fake/Real 전환)
 │       ├── data/navi/      # NaviEventSource, 시연용 가상 경로(FakeRouteNaviEventSource)
 │       ├── data/ux/        # UxRestrictionSource (CarUxRestrictions + Fake)
 │       ├── service/        # CoachingService (Foreground Service)
 │       ├── voice/          # VoiceOutput(클립·Android TTS), AudioFocusController, VoiceCoach
-│       └── ui/             # MainActivity, UxModeController, 대시보드(dashboard/), 주행 화면(driving/), 성적표(report/), 튜토리얼(tutorial/), 테마(theme/)
+│       └── ui/             # MainActivity, UxModeController, 대시보드(dashboard/), 주행 화면(driving/), 성적표(report/), 튜토리얼(tutorial/), 도움말(tips/), 테마(theme/)
 ├── scripts/                # 음성 클립 생성 스크립트
 ├── gradle/                 # Version Catalog(libs.versions.toml), Gradle wrapper
 ├── settings.gradle.kts     # 모듈·저장소 설정 (Pleos Nexus 포함)
@@ -60,7 +60,8 @@ pleos-side-coach/
 | 상황 예고 (#21) | 가상 경로(Fake 내비) + 300~150m 예고, 상황별 음성 | ✅ 완료 |
 | 튜토리얼 (#23) | 내 차 익히기: 깜빡이 좌·우·브레이크 미션, 조작 자동 확인 | ✅ 완료 |
 | Gleo 연동 (#25) | schema.json + 코칭 시작·튜토리얼 activity 액션, 응답 브로드캐스트 | ✅ 완료 |
-| 숙련도 제거·튜토리얼 팝업 대응 (#27) | 교습 단일 모드, 깜빡이 카메라 팝업이 미션 카드를 가리지 않게 배치 | 🔄 리뷰 중 |
+| 숙련도 제거·튜토리얼 팝업 대응 (#27) | 교습 단일 모드, 깜빡이 카메라 팝업이 미션 카드를 가리지 않게 배치 | ✅ 완료 |
+| 차량 기능 도움말 (#29) | 김 서림·내기/외기·에어컨·가속 모드·회생제동·페달 모드·차일드락 9개, 버튼 그림, Gleo 음성 답변 | 🔄 리뷰 중 |
 
 ---
 
@@ -338,6 +339,27 @@ pleos-side-coach/
 
 ---
 
+### #29 — 차량 기능 도움말 (2026-11-10)
+
+**왜 이 작업을 했나**
+> 초보운전자는 김 서릴 때 무엇을 켜야 하는지, 내기/외기 순환을 언제 쓰는지, 가속 모드·회생제동·원페달 같은 전기차 기능이 무엇인지 헷갈려함(사용자 요청)
+
+**뭘 했나**
+> 도움말 9개(앞유리·뒷유리 김 서림, 내기 순환, 외기 유입, 에어컨, 가속 모드, 회생제동, 가속 페달 모드, 차일드락): 상황 설명, 단계별 조작, 눌러야 할 버튼 그림, 메뉴 위치("찾는 곳"), 음성 요약. 정차 중에는 대시보드 '차량 기능 도움말' 화면, 주행 중에는 Gleo `ASK_CAR_TIP`(topic)으로 음성 답변(앱이 직접 말하고 응답은 silent). 음성 클립 9개, 단위 테스트 4개 추가
+
+**어떤 구조를 선택했고 왜**
+> 차량 값을 읽지 않는 안내형으로 만듦. HVAC API는 `pleos.car.permission.CAR_CLIMATE`가 필요한데 승인 미확정. Gleo 응답은 앱이 직접 음성을 내므로 silent로 보내 이중 낭독을 막음. 주행 중에는 화면을 열지 않고 음성만
+
+**왜 이 방법을 선택했나 (다른 방법은 없었나)**
+> 버튼 아이콘은 사용자가 "차량 버튼과 똑같이"를 원했지만, 시스템 앱의 그림 파일을 뽑아 쓰면 현대차·Pleos 디자인 자산 재배포가 되어 위험함 → 차량 UI 아이콘(검은 바탕·흰 선, 옆모습 차+화살표, 앞유리+화살표, 아이 얼굴+자물쇠)을 참고해 Canvas로 직접 그림(사용자 결정). 메뉴 이름은 에뮬레이터 차량 제어 앱에서 실측한 이름 사용
+
+**배운 것 / 몰랐던 것**
+> Pleos 차량 제어 앱(`ai.umos.vehiclecontrol`): 주행 → 가속 모드(Comfort/Normal/Sport, 눈·빗길 모드), 가속 페달 모드(원페달 모드/크립 모드), 정차 후 브레이크 자동 유지(Auto Hold). 빠른 설정 → 차일드락. 회생제동은 별도 메뉴 없음
+> bash heredoc이 긴 Python 스크립트에서 깨지는 경우가 있어 스크립트를 파일로 저장해 실행함. sed로 `
+`을 넣으면 실제 줄바꿈이 들어가 Kotlin 문자열이 깨짐
+
+---
+
 ## 🐛 에러 모음
 
 | 에러 | 원인 | 해결 |
@@ -352,3 +374,4 @@ pleos-side-coach/
 | `cmd hmg_car_service` 없음 | 에뮬레이터에 해당 서비스 없음 | 콘솔 기어로 주행 규제 전환 |
 | 주행 시간이 절반으로 집계 | 이벤트 간격 상한이 정속 구간을 잘라냄 | 상한 제거 |
 | ps1 첫 줄 주석이 명령으로 실행됨 | BOM이 두 번 붙음 | BOM 하나로 정리 |
+| Kotlin 문자열에 실제 줄바꿈 | sed 치환에서 `\n`이 개행으로 바뀜 | 파일 편집 도구로 직접 수정 |

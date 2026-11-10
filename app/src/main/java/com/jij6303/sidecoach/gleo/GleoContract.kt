@@ -9,6 +9,9 @@ object GleoContract {
 
     const val START_DRIVING_COACH = "START_DRIVING_COACH"
     const val RUN_VEHICLE_TUTORIAL = "RUN_VEHICLE_TUTORIAL"
+    const val ASK_CAR_TIP = "ASK_CAR_TIP"
+
+    const val PARAM_TOPIC = "topic"
 
     /** Gleo는 이 시간 안에 응답이 없으면 취소한다. */
     const val RESPONSE_TIMEOUT_MS = 7_000L

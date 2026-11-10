@@ -29,7 +29,7 @@ class GleoSchemaTest {
     @Test
     fun `선언한 액션은 모두 코드에서 처리한다`() {
         assertEquals(
-            setOf(GleoContract.START_DRIVING_COACH, GleoContract.RUN_VEHICLE_TUTORIAL),
+            setOf(GleoContract.START_DRIVING_COACH, GleoContract.RUN_VEHICLE_TUTORIAL, GleoContract.ASK_CAR_TIP),
             functions.map { it.getString("name") }.toSet(),
         )
         functions.forEach { assertEquals("activity", it.getString("component")) }
@@ -43,5 +43,16 @@ class GleoSchemaTest {
             val required = params.getJSONArray("required").let { a -> (0 until a.length()).map { a.getString(it) } }
             assertTrue(props.containsAll(required))
         }
+    }
+
+    @Test
+    fun `도움말 주제 enum은 앱의 도움말 목록과 같다`() {
+        val tip = functions.first { it.getString("name") == GleoContract.ASK_CAR_TIP }
+        val enum = tip.getJSONObject("parameters").getJSONObject("properties")
+            .getJSONObject(GleoContract.PARAM_TOPIC).getJSONArray("enum")
+        assertEquals(
+            com.jij6303.sidecoach.domain.tips.CarTip.entries.map { it.name }.toSet(),
+            (0 until enum.length()).map { enum.getString(it) }.toSet(),
+        )
     }
 }

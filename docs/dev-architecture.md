@@ -560,7 +560,7 @@ val req = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_D
 - `version`은 App Market에 등록한 버전과 맞춰야 한다.
 - `parameters.properties`가 빈 객체여도 검토를 통과하는지 확인해야 한다.
 
-> **구현(#25·#27) 기준 변경**: #27에서 `START_DRIVING_COACH`의 `experienceLevel` 파라미터를 뺐다(숙련도 구분 제거, 파라미터 없음). MVP schema는 activity 액션 2개(`START_DRIVING_COACH`, `RUN_VEHICLE_TUTORIAL`)만 선언한다. `packageName`은 `com.jij6303.sidecoach`, `version`은 앱 versionName(`1.0`). `RUN_VEHICLE_TUTORIAL`은 실제 미션과 맞지 않는 `targetComponent` 파라미터를 뺐다. `EXPLAIN_CURRENT_TRAFFIC_RULE`(service)은 수신 검증 후 2차에 추가. 실측: 설치 시 Gleo(GAA)가 schema.json을 읽는 로그 확인.
+> **구현(#25·#27·#29) 기준 변경**: #29에서 세 번째 액션 `ASK_CAR_TIP`(activity, `topic` 필수: WINDSHIELD_FOG, REAR_WINDOW_FOG, RECIRCULATION, FRESH_AIR, AIR_CONDITIONER, DRIVE_MODE, REGEN_BRAKING, PEDAL_MODE, CHILD_LOCK)을 추가했다. 앱이 직접 음성으로 답하고 응답은 `mode: silent`. 주행 중에는 화면을 열지 않는다. #27에서 `START_DRIVING_COACH`의 `experienceLevel` 파라미터를 뺐다(숙련도 구분 제거, 파라미터 없음). MVP schema는 activity 액션 2개(`START_DRIVING_COACH`, `RUN_VEHICLE_TUTORIAL`)만 선언한다. `packageName`은 `com.jij6303.sidecoach`, `version`은 앱 versionName(`1.0`). `RUN_VEHICLE_TUTORIAL`은 실제 미션과 맞지 않는 `targetComponent` 파라미터를 뺐다. `EXPLAIN_CURRENT_TRAFFIC_RULE`(service)은 수신 검증 후 2차에 추가. 실측: 설치 시 Gleo(GAA)가 schema.json을 읽는 로그 확인.
 
 ### 7.2 Intent 수신
 
