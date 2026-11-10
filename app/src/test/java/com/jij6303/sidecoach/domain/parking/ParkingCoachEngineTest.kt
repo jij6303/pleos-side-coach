@@ -292,7 +292,9 @@ class ParkingCoachEngineTest {
         val phrases = ParkingPhrases.clips.values.toSet()
         ParkingType.entries.flatMap { it.steps }.forEach { assertTrue(it.instruction, it.instruction in phrases) }
         ParkingPhrases.clips.keys.forEach { name ->
-            assertTrue("res/raw/$name.wav 없음", File("src/main/res/raw/$name.wav").exists())
+            // 개발용 TTS wav 또는 직접 녹음한 mp3·ogg (#39)
+            val found = listOf("wav", "mp3", "ogg").any { File("src/main/res/raw/$name.$it").exists() }
+            assertTrue("res/raw/$name 클립 없음", found)
         }
     }
 }

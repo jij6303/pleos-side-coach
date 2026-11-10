@@ -1,6 +1,7 @@
 ﻿# 코칭 문구 음성 클립 생성 (개발용 임시 음성: Windows "Microsoft Heami Desktop")
 # 문구를 바꾸면 MessageCatalog와 이 목록을 같이 고치고 다시 실행한다.
 # 제출 전에는 라이선스가 확인된 음성(직접 녹음 등)으로 같은 파일명에 교체한다.
+# 직접 녹음한 파일(같은 이름의 .mp3 등, wav가 아닌 것)이 있으면 -Force여도 건드리지 않는다(#39).
 #
 # 실행: powershell -ExecutionPolicy Bypass -File scripts/generate_voice_clips.ps1
 #       이미 있는 파일은 건너뛴다. 문구를 바꿔 다시 만들려면 -Force
@@ -62,6 +63,8 @@ $format = New-Object System.Speech.AudioFormat.SpeechAudioFormatInfo(22050, [Sys
 
 foreach ($name in $clips.Keys) {
     $path = Join-Path $outDir "$name.wav"
+    $recorded = Get-ChildItem -Path $outDir -Filter "$name.*" | Where-Object { $_.Extension -ne '.wav' }
+    if ($recorded) { Write-Output "$name  (녹음본 $($recorded[0].Name) 유지)"; continue }
     if ((Test-Path $path) -and -not $Force) { continue }
     $synth.SetOutputToWaveFile($path, $format)
     $synth.Speak($clips[$name])
