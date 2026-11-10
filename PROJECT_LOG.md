@@ -19,13 +19,13 @@ pleos-side-coach/
 ├── app/                    # Android 앱 모듈 (Compose, 패키지 com.jij6303.sidecoach)
 │   └── src/main/java/com/jij6303/sidecoach/
 │       ├── data/vehicle/   # VehicleDataSource 인터페이스 + Pleos SDK·AAOS·Fake 구현
-│       ├── domain/         # DrivingSnapshot, DrivingStateRepository, 디텍터·중재자·주행(trip/)·성적표(report/)·상황 예고(situation/) (순수 Kotlin)
+│       ├── domain/         # DrivingSnapshot, DrivingStateRepository, 디텍터·중재자·주행(trip/)·성적표(report/)·상황 예고(situation/)·튜토리얼(tutorial/) (순수 Kotlin)
 │       ├── di/             # ServiceLocator (수동 DI, Fake/Real 전환)
 │       ├── data/navi/      # NaviEventSource, 시연용 가상 경로(FakeRouteNaviEventSource)
 │       ├── data/ux/        # UxRestrictionSource (CarUxRestrictions + Fake)
 │       ├── service/        # CoachingService (Foreground Service)
 │       ├── voice/          # VoiceOutput(클립·Android TTS), AudioFocusController, VoiceCoach
-│       └── ui/             # MainActivity, UxModeController, 대시보드(dashboard/), 주행 화면(driving/), 성적표(report/), 테마(theme/)
+│       └── ui/             # MainActivity, UxModeController, 대시보드(dashboard/), 주행 화면(driving/), 성적표(report/), 튜토리얼(tutorial/), 테마(theme/)
 ├── scripts/                # 음성 클립 생성 스크립트
 ├── gradle/                 # Version Catalog(libs.versions.toml), Gradle wrapper
 ├── settings.gradle.kts     # 모듈·저장소 설정 (Pleos Nexus 포함)
@@ -56,7 +56,8 @@ pleos-side-coach/
 | 음성 코칭 출력 (#15) | 오디오 포커스, 녹음 클립 + Android TTS fallback | ✅ 완료 |
 | 코칭 서비스·주행 화면 (#17) | Foreground Service, 주행 규제별 화면 전환, 주행 화면 | ✅ 완료 |
 | 성적표 (#19) | 주행 단위 판정, 점수·등급·다음 연습 과제, 성적표 화면·요약 음성 | ✅ 완료 |
-| 상황 예고 (#21) | 가상 경로(Fake 내비) + 300~150m 예고, 상황별 음성 | 🔄 리뷰 중 |
+| 상황 예고 (#21) | 가상 경로(Fake 내비) + 300~150m 예고, 상황별 음성 | ✅ 완료 |
+| 튜토리얼 (#23) | 내 차 익히기: 깜빡이·브레이크·주차 브레이크 미션, 조작 자동 확인 | 🔄 리뷰 중 |
 
 ---
 
@@ -270,6 +271,27 @@ pleos-side-coach/
 **배운 것 / 몰랐던 것**
 > Android 14의 variable update rate 때문에 같은 차속 값은 이벤트가 오지 않을 수 있어, 가상 경로는 1초 타이머로도 거리를 갱신함
 > 에뮬레이터 실측: D 후 약 50 km/h 주행 시 11초 만에 회전교차로 예고, 이어서 어린이보호구역 예고
+
+---
+
+### #23 — 내 차 익히기 튜토리얼 (2026-11-10)
+
+**왜 이 작업을 했나**
+> "차량이 실제 조작을 확인해주는 연수"는 폰 앱으로는 불가능한, 데모 임팩트가 가장 큰 기능 (concept ③)
+
+**뭘 했나**
+> `TutorialMission`(왼쪽·오른쪽 깜빡이, 브레이크, 주차 브레이크), `TutorialEngine`(순서 진행·조작 감지·건너뛰기), `TutorialController`(스냅샷 구독 수명·음성 메시지), `TutorialScreen`(현재 미션 카드 + 목록 ✓). 대시보드 '내 차 익히기' 버튼(P단만), Back으로 종료, P를 벗어나면 자동 종료. 음성 클립 9개, 단위 테스트 8개 추가
+
+**어떤 구조를 선택했고 왜**
+> 조건이 거짓인 것을 한 번 본 뒤 참이 되어야 완료로 침. 이미 켜져 있던 상태로 통과하면 "직접 해봤다"는 의미가 없어서. 완료 시 칭찬과 다음 지시를 한 문장("잘했어요! 다음은 …")으로 보냄. VoiceCoach 대기열은 최신 1개만 남기므로 두 문장을 연달아 보내면 칭찬이 버려지기 때문
+
+**왜 이 방법을 선택했나 (다른 방법은 없었나)**
+> 와이퍼 미션은 SDK가 `pleos.car.permission.CAR_WINDOWS`를 요구하는데 승인 여부가 확정되지 않아 제외(사용자 결정). 새 권한 없이 이미 받는 신호만으로 미션 구성
+
+**배운 것 / 몰랐던 것**
+> Vehicle SDK 와이퍼 API: `getWiper().registerWiperState(WindowArea, WiperStateListener)`, 상태 `WiperState`(OFF/ON 등), 권한 `CAR_WINDOWS`(가이드 요약의 `READ_WINDSHIELD_WIPERS`와 다름)
+> Virtual Console에서는 주차 브레이크(`PARKING_BRAKE_ON`) 조작 항목을 찾을 수 없음 → 에뮬레이터에서는 이 미션을 건너뛰기로 시연
+> 튜토리얼 중 기어가 잠깐이라도 P를 벗어나면 설계대로 튜토리얼이 끝남
 
 ---
 
