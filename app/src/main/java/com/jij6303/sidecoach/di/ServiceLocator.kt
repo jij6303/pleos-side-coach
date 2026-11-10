@@ -138,8 +138,6 @@ object ServiceLocator {
                 MessageCatalog.tutorialInstruction(TutorialMission.RIGHT_SIGNAL, afterSuccess = true) to R.raw.tutorial_right_signal_next,
                 MessageCatalog.tutorialInstruction(TutorialMission.BRAKE, afterSuccess = false) to R.raw.tutorial_brake,
                 MessageCatalog.tutorialInstruction(TutorialMission.BRAKE, afterSuccess = true) to R.raw.tutorial_brake_next,
-                MessageCatalog.tutorialInstruction(TutorialMission.PARKING_BRAKE, afterSuccess = false) to R.raw.tutorial_parking_brake,
-                MessageCatalog.tutorialInstruction(TutorialMission.PARKING_BRAKE, afterSuccess = true) to R.raw.tutorial_parking_brake_next,
                 MessageCatalog.tutorialDone() to R.raw.tutorial_done,
                 MessageCatalog.report(Grade.GREAT) to R.raw.report_great,
                 MessageCatalog.report(Grade.GOOD) to R.raw.report_good,

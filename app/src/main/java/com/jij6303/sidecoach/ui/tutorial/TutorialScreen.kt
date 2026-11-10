@@ -181,7 +181,7 @@ private fun TutorialPreview() {
 private fun TutorialDonePreview() {
     SideCoachTheme {
         TutorialScreen(
-            state = TutorialState(TutorialMission.entries, setOf(TutorialMission.LEFT_SIGNAL, TutorialMission.BRAKE), 4),
+            state = TutorialState(TutorialMission.entries, setOf(TutorialMission.LEFT_SIGNAL, TutorialMission.BRAKE), 3),
             onSkip = {}, onClose = {},
         )
     }

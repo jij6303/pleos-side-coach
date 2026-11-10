@@ -57,7 +57,7 @@ pleos-side-coach/
 | 코칭 서비스·주행 화면 (#17) | Foreground Service, 주행 규제별 화면 전환, 주행 화면 | ✅ 완료 |
 | 성적표 (#19) | 주행 단위 판정, 점수·등급·다음 연습 과제, 성적표 화면·요약 음성 | ✅ 완료 |
 | 상황 예고 (#21) | 가상 경로(Fake 내비) + 300~150m 예고, 상황별 음성 | ✅ 완료 |
-| 튜토리얼 (#23) | 내 차 익히기: 깜빡이·브레이크·주차 브레이크 미션, 조작 자동 확인 | 🔄 리뷰 중 |
+| 튜토리얼 (#23) | 내 차 익히기: 깜빡이 좌·우·브레이크 미션, 조작 자동 확인 | 🔄 리뷰 중 |
 
 ---
 
@@ -280,7 +280,7 @@ pleos-side-coach/
 > "차량이 실제 조작을 확인해주는 연수"는 폰 앱으로는 불가능한, 데모 임팩트가 가장 큰 기능 (concept ③)
 
 **뭘 했나**
-> `TutorialMission`(왼쪽·오른쪽 깜빡이, 브레이크, 주차 브레이크), `TutorialEngine`(순서 진행·조작 감지·건너뛰기), `TutorialController`(스냅샷 구독 수명·음성 메시지), `TutorialScreen`(현재 미션 카드 + 목록 ✓). 대시보드 '내 차 익히기' 버튼(P단만), Back으로 종료, P를 벗어나면 자동 종료. 음성 클립 9개, 단위 테스트 8개 추가
+> `TutorialMission`(왼쪽·오른쪽 깜빡이, 브레이크), `TutorialEngine`(순서 진행·조작 감지·건너뛰기), `TutorialController`(스냅샷 구독 수명·음성 메시지), `TutorialScreen`(현재 미션 카드 + 목록 ✓). 대시보드 '내 차 익히기' 버튼(P단만), Back으로 종료, P를 벗어나면 자동 종료. 음성 클립 7개, 단위 테스트 8개 추가
 
 **어떤 구조를 선택했고 왜**
 > 조건이 거짓인 것을 한 번 본 뒤 참이 되어야 완료로 침. 이미 켜져 있던 상태로 통과하면 "직접 해봤다"는 의미가 없어서. 완료 시 칭찬과 다음 지시를 한 문장("잘했어요! 다음은 …")으로 보냄. VoiceCoach 대기열은 최신 1개만 남기므로 두 문장을 연달아 보내면 칭찬이 버려지기 때문
@@ -290,7 +290,7 @@ pleos-side-coach/
 
 **배운 것 / 몰랐던 것**
 > Vehicle SDK 와이퍼 API: `getWiper().registerWiperState(WindowArea, WiperStateListener)`, 상태 `WiperState`(OFF/ON 등), 권한 `CAR_WINDOWS`(가이드 요약의 `READ_WINDSHIELD_WIPERS`와 다름)
-> Virtual Console에서는 주차 브레이크(`PARKING_BRAKE_ON`) 조작 항목을 찾을 수 없음 → 에뮬레이터에서는 이 미션을 건너뛰기로 시연
+> Virtual Console에서는 주차 브레이크(`PARKING_BRAKE_ON`) 조작 항목을 찾을 수 없음 → 에뮬레이터에서 완료할 수 없는 미션이라 뺌(사용자 결정)
 > 튜토리얼 중 기어가 잠깐이라도 P를 벗어나면 설계대로 튜토리얼이 끝남
 
 ---

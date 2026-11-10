@@ -402,7 +402,7 @@ candidate(type, d, key):
 | BRAKE | 브레이크 페달 `true` | ✅ #23 구현·실측 |
 | WIPER | Wiper 상태 변화 (콘솔 Windshield Wiper Switch로 테스트 가능) | ✅ SDK 확인(#23): `getWiper().registerWiperState(WindowArea, WiperStateListener)`, 권한 `pleos.car.permission.CAR_WINDOWS`. **권한 승인 미확정이라 MVP 제외** |
 | HAZARD_LIGHT | AAOS `HAZARD_LIGHTS_STATE` = ON (TurnSignal로는 확인 불가 ✅ 실측) | ❌ 서드파티 앱 권한으로 읽기 불가(#7 실측). 대체 경로 확인 전까지 보류 |
-| PARKING_BRAKE | AAOS `PARKING_BRAKE_ON` = true (텔테일 API는 비공개 ✅ 실측) | ✅ 읽기 확인(#7, `CAR_POWERTRAIN`). ⚠️ Virtual Console에 조작 항목 없음(#23) → 에뮬레이터는 건너뛰기로 시연 |
+| PARKING_BRAKE | AAOS `PARKING_BRAKE_ON` = true (텔테일 API는 비공개 ✅ 실측) | ✅ 읽기 확인(#7, `CAR_POWERTRAIN`). ⚠️ Virtual Console에 조작 항목 없음(#23) → **MVP 제외**(에뮬레이터에서 완료 불가) |
 | SEAT_BELT | `registerSeatBeltNotBuckledWarning` 경고 해제 | ❌ 에뮬레이터 콘솔에서 시뮬레이션 불가 → 실차용으로만 유지 |
 | DEFROST | HVAC 디프로스터 ON | ❓ 2차 |
 
