@@ -21,7 +21,9 @@ pleos-side-coach/
 │       ├── data/vehicle/   # VehicleDataSource 인터페이스 + Pleos SDK·AAOS·Fake 구현
 │       ├── domain/         # DrivingSnapshot, DrivingStateRepository (순수 Kotlin)
 │       ├── di/             # ServiceLocator (수동 DI, Fake/Real 전환)
+│       ├── voice/          # VoiceOutput(클립·Android TTS), AudioFocusController, VoiceCoach
 │       └── ui/             # MainActivity, 대시보드(dashboard/), 테마(theme/)
+├── scripts/                # 음성 클립 생성 스크립트
 ├── gradle/                 # Version Catalog(libs.versions.toml), Gradle wrapper
 ├── settings.gradle.kts     # 모듈·저장소 설정 (Pleos Nexus 포함)
 ├── build.gradle.kts        # 루트 빌드 설정
@@ -47,7 +49,8 @@ pleos-side-coach/
 | 차량 신호 데이터 소스 (#7) | 패키지 정정, Vehicle SDK·AAOS 신호 구독, 신호 디버그 화면 | ✅ 완료 |
 | 디텍터·코칭 중재 (#9) | 깜빡이 누락·급제동 판정, 중재자, 주행 통계 | ✅ 완료 |
 | 앱 이름 변경 (#11) | 옆자리 쌤 → 초보운전탈출 | ✅ 완료 |
-| 대시보드 UI (#13) | 코칭 카드·차량 상태·주행 통계 타일, 앱 전용 테마 | 🔄 리뷰 중 |
+| 대시보드 UI (#13) | 코칭 카드·차량 상태·주행 통계 타일, 앱 전용 테마 | ✅ 완료 |
+| 음성 코칭 출력 (#15) | 오디오 포커스, 녹음 클립 + Android TTS fallback | 🔄 리뷰 중 |
 
 ---
 
@@ -171,6 +174,34 @@ pleos-side-coach/
 
 ---
 
+### #15 — TTS 음성 코칭 출력과 오디오 포커스 (2026-11-10)
+
+**왜 이 작업을 했나**
+> 코칭 메시지가 logcat에만 찍히고 있었음. 주행 중 앱은 음성 위주여야 하므로 실제 소리로 내야 했음
+
+**뭘 했나**
+> `VoiceOutput` 인터페이스, `AudioFocusController`(NAVIGATION_GUIDANCE, GAIN_TRANSIENT_MAY_DUCK, 손실 시 즉시 정지·재생 안 함, 상태 로그), `VoiceCoach`(포커스 실패·엔진 미준비 시 500ms마다 재시도, TTL 4초 지나면 폐기, 발화 중 들어온 메시지는 최신 1개만), `ClipVoiceOutput`(녹음 클립) + `AndroidTtsVoiceOutput`(fallback). 단위 테스트 7개 추가
+
+**어떤 구조를 선택했고 왜**
+> `VoiceOutput.speak()`를 끝날 때까지 기다리는 suspend 함수로 만들어, 포커스 요청 → 발화 → 반환 순서가 `try/finally` 한 곳에 모이게 함. `VoiceCoach`는 Android 의존이 없어 가상 시간으로 JVM 테스트 가능
+
+**왜 이 방법을 선택했나 (다른 방법은 없었나)**
+> 에뮬레이터에 표준 TTS 엔진이 없어서 Pleos 내부 음성 서비스를 직접 호출하는 방법도 있었지만, 문서화되지 않은 API라 쓰지 않음. TTS 엔진 APK를 설치하는 방법은 심사 환경에서 소리가 안 나서 제외. 코칭 문구가 정해져 있으니 녹음 클립이 가장 확실함
+
+**배운 것 / 몰랐던 것**
+> Pleos 에뮬레이터의 유일한 TTS 서비스(`ai.pleos.playground.caas`)는 `CATEGORY_DEFAULT`가 없어 `MATCH_DEFAULT_ONLY` 조회(프레임워크 `TtsEngines`도 같음)에 안 잡힘
+> Android 11+는 `<queries>`에 `TTS_SERVICE`를 넣어야 엔진이 보임
+> `TextToSpeech` 연결이 실패하면 init 콜백이 생성자 안에서 동기로 불림
+> `runTest`의 `advanceUntilIdle()`은 `backgroundScope` 작업을 기다리지 않음 → `runCurrent()` 사용
+> PowerShell 5.1은 BOM 없는 UTF-8 스크립트의 한글을 깨뜨림
+
+**에러 & 해결**
+> 에러: 앱 시작 직후 크래시 `NullPointerException: TextToSpeech.shutdown() on a null object reference`
+> 원인: 엔진 연결 실패 시 init 콜백이 생성자 안에서 바로 불려, 아직 대입 전인 `tts` 필드를 건드림
+> 해결: init 콜백 처리를 메인 루퍼에 `post`로 미룸
+
+---
+
 ## 🐛 에러 모음
 
 | 에러 | 원인 | 해결 |
@@ -180,3 +211,5 @@ pleos-side-coach/
 | __pycache__ 커밋됨 | .gitignore에 미등록 | .gitignore에 `__pycache__/` 추가 후 인덱스에서 제거 |
 | 비상등 registerCallback=false | CAR_EXTERIOR_LIGHTS가 signature\|privileged | 권한 선언 제외, 수신 불가로 표시 |
 | 깜빡이를 켰는데 누락 경고 | Virtual Console 조향 부호가 SDK와 반대 | 콘솔에서는 반대 부호로 조작 (로직 정상) |
+| TextToSpeech init status=-1 | 에뮬레이터에 표준 TTS 엔진 없음 (Pleos 서비스는 CATEGORY_DEFAULT 없음) | 녹음 클립 재생 + TTS fallback |
+| 앱 시작 직후 NPE (TextToSpeech) | 연결 실패 시 init 콜백이 생성자 안에서 동기 호출 | 콜백 처리를 메인 루퍼에 post |

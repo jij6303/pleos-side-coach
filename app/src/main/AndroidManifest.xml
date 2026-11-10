@@ -15,6 +15,13 @@
     <uses-permission android:name="android.car.permission.CAR_SPEED" />           <!-- PERF_VEHICLE_SPEED -->
     <!-- HAZARD_LIGHTS_STATE에 필요한 CAR_EXTERIOR_LIGHTS는 signature|privileged라 서드파티 앱에 승인되지 않음(에뮬레이터 실측) → 선언하지 않음 -->
 
+    <!-- Android 11+ 패키지 가시성: TTS 엔진 서비스를 찾으려면 선언해야 함 (없으면 TextToSpeech init 실패) -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.TTS_SERVICE" />
+        </intent>
+    </queries>
+
     <application
         android:name=".SideCoachApp"
         android:allowBackup="true"
