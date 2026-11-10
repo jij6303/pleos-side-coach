@@ -20,6 +20,8 @@ import com.jij6303.sidecoach.domain.coach.CoachingPipeline
 import com.jij6303.sidecoach.domain.coach.MessageCatalog
 import com.jij6303.sidecoach.domain.report.Grade
 import com.jij6303.sidecoach.domain.situation.SituationType
+import com.jij6303.sidecoach.domain.tips.CarTip
+import com.jij6303.sidecoach.domain.tips.CarTipSpeaker
 import com.jij6303.sidecoach.domain.tutorial.TutorialController
 import com.jij6303.sidecoach.domain.tutorial.TutorialMission
 import com.jij6303.sidecoach.domain.detect.BlinkerOmissionDetector
@@ -81,6 +83,8 @@ object ServiceLocator {
 
     lateinit var tutorial: TutorialController
         private set
+    lateinit var tipSpeaker: CarTipSpeaker
+        private set
 
     lateinit var voiceOutput: VoiceOutput
         private set
@@ -116,6 +120,7 @@ object ServiceLocator {
         val clock: () -> Long = if (useFake) System::currentTimeMillis else SystemClock::elapsedRealtime
         naviEventSource = FakeRouteNaviEventSource(drivingStateRepository.updates, clock)
         tutorial = TutorialController(drivingStateRepository.updates, clock)
+        tipSpeaker = CarTipSpeaker(clock)
         coachingPipeline = CoachingPipeline(
             updates = drivingStateRepository.updates,
             detectors = listOf(BlinkerOmissionDetector(), HardBrakeDetector()),
@@ -145,6 +150,15 @@ object ServiceLocator {
                 MessageCatalog.tutorialInstruction(TutorialMission.BRAKE, afterSuccess = false) to R.raw.tutorial_brake,
                 MessageCatalog.tutorialInstruction(TutorialMission.BRAKE, afterSuccess = true) to R.raw.tutorial_brake_next,
                 MessageCatalog.tutorialDone() to R.raw.tutorial_done,
+                CarTip.WINDSHIELD_FOG.spoken to R.raw.tip_windshield_fog,
+                CarTip.REAR_WINDOW_FOG.spoken to R.raw.tip_rear_window_fog,
+                CarTip.RECIRCULATION.spoken to R.raw.tip_recirculation,
+                CarTip.FRESH_AIR.spoken to R.raw.tip_fresh_air,
+                CarTip.AIR_CONDITIONER.spoken to R.raw.tip_air_conditioner,
+                CarTip.DRIVE_MODE.spoken to R.raw.tip_drive_mode,
+                CarTip.REGEN_BRAKING.spoken to R.raw.tip_regen_braking,
+                CarTip.PEDAL_MODE.spoken to R.raw.tip_pedal_mode,
+                CarTip.CHILD_LOCK.spoken to R.raw.tip_child_lock,
                 MessageCatalog.report(Grade.GREAT) to R.raw.report_great,
                 MessageCatalog.report(Grade.GOOD) to R.raw.report_good,
                 MessageCatalog.report(Grade.PRACTICE) to R.raw.report_practice,
@@ -165,7 +179,7 @@ object ServiceLocator {
     fun startCoaching() {
         drivingStateRepository.start(appScope)
         coachingPipeline.start(appScope)
-        voiceCoach.start(appScope, merge(coachingPipeline.messages, tutorial.messages))
+        voiceCoach.start(appScope, merge(coachingPipeline.messages, tutorial.messages, tipSpeaker.messages))
     }
 
     fun stopCoaching() {

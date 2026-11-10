@@ -17,6 +17,9 @@ enum class CoachType(val priority: Int, val high: Boolean) {
 
     /** 정차 중 튜토리얼 안내. 중재자를 거치지 않는다. */
     TUTORIAL(priority = 0, high = false),
+
+    /** 차량 기능 도움말 음성. 중재자를 거치지 않는다. */
+    TIP(priority = 0, high = false),
 }
 
 data class CoachMessage(

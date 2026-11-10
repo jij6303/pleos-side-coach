@@ -1,5 +1,6 @@
 package com.jij6303.sidecoach.gleo
 
+import com.jij6303.sidecoach.domain.tips.CarTip
 import com.jij6303.sidecoach.ui.UiMode
 import kotlinx.coroutines.test.runTest
 import org.json.JSONArray
@@ -51,10 +52,15 @@ class GleoTest {
     private var tutorialStarted = false
     private var mode: UiMode? = UiMode.PARKED_FULL
 
+    private var spokenTip: CarTip? = null
+    private var openedTip: CarTip? = null
+
     private val handler = GleoActionHandler(
         startCoaching = { coachingStarted = true },
         currentMode = { mode },
         startTutorial = { tutorialStarted = true },
+        speakTip = { spokenTip = it },
+        openTip = { openedTip = it },
     )
 
     @Test
@@ -85,5 +91,31 @@ class GleoTest {
     fun `모르는 액션은 처리하지 않는다`() = runTest {
         assertNull(handler.handle("EXPLAIN_CURRENT_TRAFFIC_RULE", emptyMap()))
         assertNull(handler.handle(null, emptyMap()))
+    }
+
+    @Test
+    fun `도움말은 앱이 직접 말하고 Gleo는 읽지 않게 silent로 응답`() = runTest {
+        val r = handler.handle("ASK_CAR_TIP", mapOf("topic" to "WINDSHIELD_FOG"))!!
+        assertEquals(CarTip.WINDSHIELD_FOG, spokenTip)
+        assertEquals(GleoResponse.Status.SUCCESS, r.status)
+        assertEquals(GleoResponse.Mode.SILENT, r.mode)
+    }
+
+    @Test
+    fun `정차 중이면 도움말 화면도 열고, 주행 중이면 음성만`() = runTest {
+        handler.handle("ASK_CAR_TIP", mapOf("topic" to "RECIRCULATION"))
+        assertEquals(CarTip.RECIRCULATION, openedTip)
+        openedTip = null
+        mode = UiMode.DRIVING_VOICE
+        handler.handle("ASK_CAR_TIP", mapOf("topic" to "FRESH_AIR"))
+        assertEquals(CarTip.FRESH_AIR, spokenTip)
+        assertNull(openedTip)
+    }
+
+    @Test
+    fun `모르는 주제면 fail`() = runTest {
+        assertEquals(GleoResponse.Status.FAIL, handler.handle("ASK_CAR_TIP", mapOf("topic" to "WIPER"))!!.status)
+        assertEquals(GleoResponse.Status.FAIL, handler.handle("ASK_CAR_TIP", emptyMap())!!.status)
+        assertNull(spokenTip)
     }
 }

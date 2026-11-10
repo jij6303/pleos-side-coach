@@ -87,6 +87,7 @@ fun CoachingCard(message: CoachMessage?, modifier: Modifier = Modifier) {
         CoachType.PREVIEW -> signal.neutral to "상황 예고"
         CoachType.REPORT -> signal.praise to "성적표"
         CoachType.TUTORIAL -> signal.neutral to "튜토리얼"
+        CoachType.TIP -> signal.neutral to "도움말"
         null -> signal.neutral to "코칭 대기"
     }
     Surface(modifier = modifier, shape = TileShape, color = tone.container) {
@@ -337,6 +338,7 @@ fun DashboardHeader(
     usingFake: Boolean,
     demoRoute: Boolean = false,
     onStartTutorial: (() -> Unit)? = null,
+    onOpenTips: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     val signal = SideCoachTheme.signal
@@ -351,6 +353,11 @@ fun DashboardHeader(
             if (onStartTutorial != null) {
                 Button(onClick = onStartTutorial, modifier = Modifier.height(56.dp)) {
                     Text("내 차 익히기", style = MaterialTheme.typography.titleMedium)
+                }
+            }
+            if (onOpenTips != null) {
+                Button(onClick = onOpenTips, modifier = Modifier.height(56.dp)) {
+                    Text("차량 기능 도움말", style = MaterialTheme.typography.titleMedium)
                 }
             }
             // 상황 예고가 가짜 경로 기반이면 시연임을 밝힌다

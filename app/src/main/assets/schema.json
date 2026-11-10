@@ -28,6 +28,25 @@
           "required": []
         }
       }
+    },
+    {
+      "type": "function",
+      "function": {
+        "component": "activity",
+        "name": "ASK_CAR_TIP",
+        "description": "Explains how to use a vehicle feature that beginner drivers often find confusing, such as defogging, air recirculation, drive modes, regenerative braking, pedal modes, or the child lock.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "topic": {
+              "type": "string",
+              "description": "The vehicle feature or situation the driver is asking about.",
+              "enum": ["WINDSHIELD_FOG", "REAR_WINDOW_FOG", "RECIRCULATION", "FRESH_AIR", "AIR_CONDITIONER", "DRIVE_MODE", "REGEN_BRAKING", "PEDAL_MODE", "CHILD_LOCK"]
+            }
+          },
+          "required": ["topic"]
+        }
+      }
     }
   ]
 }
