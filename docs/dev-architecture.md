@@ -792,7 +792,7 @@ object GleoCallbackSender {
 | T11 | Back 키 | 최상단에서 Back | 앱이 숨겨지고 코칭 음성은 계속, 프로세스 유지 |
 | T12 | 포커스 상실 | 코칭 발화 중 다른 앱이 포커스 요청 | 즉시 정지, 메시지 재생 안 함 |
 | T13 | 프로세스 재생성 | `adb shell am kill com.sidecoach` (백그라운드 상태) | Service 재시작 후 세션 복원 |
-| T14 | 폼 팩터 | FormFactorConsole로 portrait와 landscape 전환 | 잘림·겹침 없음 |
+| T14 | 폼 팩터 | FormFactorConsole로 portrait와 landscape 전환. **실측(#33)**: 앱 창 오른쪽 끝 "⋮" 손잡이로 창 1개(841×1210dp)↔2개(1682×1210dp) 전환 가능 | 잘림·겹침 없음 (#33에서 1200dp 기준 1열/2열로 수정·확인) |
 | T15 | Gleo service 액션 | `am broadcast EXPLAIN_…` | 상황 설명 음성, callback `silent` 전송 |
 
 - 도메인 단위 테스트(JVM): 디텍터와 중재자는 **시계열 스크립트**(CSV: ts, speed, steering, signal, brake)를 넣어서 판정 결과를 검증한다.

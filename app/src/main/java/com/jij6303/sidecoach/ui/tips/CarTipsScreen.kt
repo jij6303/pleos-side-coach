@@ -2,6 +2,7 @@ package com.jij6303.sidecoach.ui.tips
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -30,9 +31,9 @@ import androidx.compose.ui.unit.dp
 import com.jij6303.sidecoach.domain.tips.CarTip
 import com.jij6303.sidecoach.ui.dashboard.Chip
 import com.jij6303.sidecoach.ui.theme.SideCoachTheme
+import com.jij6303.sidecoach.ui.theme.WIDE_MIN_DP
 
 private val Gap = 20.dp
-private const val WIDE_MIN_DP = 840
 
 /**
  * 차량 기능 도움말 (#29, PARKED_FULL 전용). 왼쪽 목록, 오른쪽 상세.
@@ -76,7 +77,8 @@ fun CarTipsScreen(
                     TipDetail(selected, onListen, Modifier.weight(1.6f))
                 }
             } else {
-                TipList(selected, onSelect, Modifier.fillMaxWidth())
+                // 좁은 창(앱 창 1개): 주제를 가로 탭으로 두어 고르자마자 상세가 바로 아래에 보이게 한다
+                TipTabs(selected, onSelect)
                 TipDetail(selected, onListen, Modifier.fillMaxWidth())
             }
         }
@@ -102,6 +104,29 @@ private fun TipList(selected: CarTip, onSelect: (CarTip) -> Unit, modifier: Modi
                         .padding(horizontal = 20.dp, vertical = 18.dp),
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun TipTabs(selected: CarTip, onSelect: (CarTip) -> Unit) {
+    val signal = SideCoachTheme.signal
+    Row(
+        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        CarTip.entries.forEach { tip ->
+            val active = tip == selected
+            Text(
+                tip.title,
+                style = MaterialTheme.typography.titleMedium,
+                color = if (active) signal.neutral.onContainer else MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(28.dp))
+                    .background(if (active) signal.neutral.container else MaterialTheme.colorScheme.surface)
+                    .clickable { onSelect(tip) }
+                    .padding(horizontal = 24.dp, vertical = 16.dp),
+            )
         }
     }
 }
