@@ -4,6 +4,8 @@ import android.content.Context
 import android.os.SystemClock
 import android.util.Log
 import com.jij6303.sidecoach.R
+import com.jij6303.sidecoach.data.navi.FakeRouteNaviEventSource
+import com.jij6303.sidecoach.data.navi.NaviEventSource
 import com.jij6303.sidecoach.data.ux.AaosUxRestrictionSource
 import com.jij6303.sidecoach.data.ux.FakeUxRestrictionSource
 import com.jij6303.sidecoach.data.ux.UxRestrictionSource
@@ -17,6 +19,7 @@ import com.jij6303.sidecoach.domain.coach.CoachingArbiter
 import com.jij6303.sidecoach.domain.coach.CoachingPipeline
 import com.jij6303.sidecoach.domain.coach.MessageCatalog
 import com.jij6303.sidecoach.domain.report.Grade
+import com.jij6303.sidecoach.domain.situation.SituationType
 import com.jij6303.sidecoach.domain.detect.BlinkerOmissionDetector
 import com.jij6303.sidecoach.domain.detect.HardBrakeDetector
 import com.jij6303.sidecoach.domain.trip.TripRecorder
@@ -53,6 +56,10 @@ object ServiceLocator {
     lateinit var drivingStateRepository: DrivingStateRepository
         private set
     lateinit var coachingPipeline: CoachingPipeline
+        private set
+
+    /** MVP는 시연용 가짜 경로 (NaviHelper 실연동은 2차). */
+    lateinit var naviEventSource: NaviEventSource
         private set
 
     lateinit var uxRestrictionSource: UxRestrictionSource
@@ -93,11 +100,15 @@ object ServiceLocator {
             ux = uxRestrictionSource.state,
             gear = drivingStateRepository.snapshot.map { it.gear },
         ).mode.stateIn(appScope, SharingStarted.WhileSubscribed(5_000), UiMode.DRIVING_VOICE)
+        // 메시지 시각과 같은 시계: 실제 소스는 elapsedRealtime, Fake는 currentTimeMillis
+        val clock: () -> Long = if (useFake) System::currentTimeMillis else SystemClock::elapsedRealtime
+        naviEventSource = FakeRouteNaviEventSource(drivingStateRepository.updates, clock)
         coachingPipeline = CoachingPipeline(
             updates = drivingStateRepository.updates,
             detectors = listOf(BlinkerOmissionDetector(), HardBrakeDetector()),
             arbiter = CoachingArbiter(),
             recorder = TripRecorder(),
+            naviEvents = naviEventSource.events,
         )
         // 중재자가 고른 메시지를 로그로도 남긴다 (logcat 태그: Coach)
         appScope.launch {
@@ -110,6 +121,10 @@ object ServiceLocator {
                 MessageCatalog.blinkerOmission() to R.raw.coach_blinker_omission,
                 MessageCatalog.hardBrake() to R.raw.coach_hard_brake,
                 MessageCatalog.praise() to R.raw.coach_praise,
+                MessageCatalog.preview(SituationType.ROUNDABOUT) to R.raw.preview_roundabout,
+                MessageCatalog.preview(SituationType.SCHOOL_ZONE) to R.raw.preview_school_zone,
+                MessageCatalog.preview(SituationType.UNPROTECTED_LEFT) to R.raw.preview_unprotected_left,
+                MessageCatalog.preview(SituationType.MERGE) to R.raw.preview_merge,
                 MessageCatalog.report(Grade.GREAT) to R.raw.report_great,
                 MessageCatalog.report(Grade.GOOD) to R.raw.report_good,
                 MessageCatalog.report(Grade.PRACTICE) to R.raw.report_practice,
@@ -119,8 +134,7 @@ object ServiceLocator {
         voiceCoach = VoiceCoach(
             output = voiceOutput,
             focus = if (requestAudioFocus) AudioFocusController(context) else NoAudioFocus,
-            // 메시지 시각과 같은 시계: 실제 소스는 elapsedRealtime, Fake는 currentTimeMillis
-            clock = if (useFake) System::currentTimeMillis else SystemClock::elapsedRealtime,
+            clock = clock,
             log = { Log.i("Voice", it) },
         )
     }

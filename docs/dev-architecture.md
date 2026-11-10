@@ -759,6 +759,7 @@ object GleoCallbackSender {
 - **차속**: ✅ 실측. 콘솔 메인 화면에서 **기어 D + ACCEL 버튼을 누르고 있으면** 차속이 오르고, BRAKE로 감속한다. 조향 슬라이더와 함께 쓰면 주행을 그대로 재현할 수 있다.
 - 콘솔 Emulation Controls(48개 기능, 7개 도메인)에서 확인한 항목: Gear Selection, Brake Pedal(%), Turn Signal State, Hazard Lights, Telltales, Windshield Wiper Switch, Door Position/Lock, Seat Occupancy, Window, Cruise Control 등. **안전벨트 체결 항목은 없음.** 위쪽 검색창은 CarProperty 이름으로도 검색된다.
 - **GPS 경로 재생은 문서에 없음** → 상황 예고는 `FakeNaviEventSource`로 이벤트를 주입해서 시연한다. 시연 영상에는 이 사실을 표기한다.
+  - 구현(#21): `FakeRouteNaviEventSource`. 기어가 P에서 벗어나면 가상 경로(400m 회전교차로, 1.1km 어린이보호구역, 1.8km 비보호좌회전, 2.6km 합류)를 시작하고, 콘솔 차속을 적분한 이동 거리로 남은 거리를 보낸다. 대시보드에 "시연 경로"로 표시한다.
 - 주행 규제 전환(✅):
   ```
   adb shell cmd hmg_car_service --service drivingstate driving_regulation on

@@ -84,6 +84,7 @@ class MainActivity : ComponentActivity() {
                             lastMessage = lastMessage,
                             stats = stats,
                             usingFake = ServiceLocator.useFakeVehicle,
+                            demoRoute = ServiceLocator.naviEventSource.isDemo,
                             modifier = Modifier.padding(innerPadding),
                         )
                     }
