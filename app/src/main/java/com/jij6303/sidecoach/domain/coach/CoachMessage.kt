@@ -6,9 +6,17 @@ import com.jij6303.sidecoach.domain.situation.SituationType
 /** 코칭 유형. [priority]가 클수록 먼저 말한다 (dev-architecture 4.5). */
 enum class CoachType(val priority: Int, val high: Boolean) {
     HARD_BRAKE(priority = 50, high = true),
+
+    /** 움직이는 중 기어 변경 (#49). */
+    GEAR_SHIFT_MOVING(priority = 45, high = true),
     PREVIEW(priority = 40, high = true),
+    /** 회전 중 과속 (#49). 회전은 금방 끝나므로 짧은 간격으로도 말한다. */
+    TURN_SPEED(priority = 35, high = true),
     SPEEDING(priority = 30, high = false),
     BLINKER_OMISSION(priority = 20, high = false),
+
+    /** 깜빡이 끄기 잊음 (#49). */
+    BLINKER_LEFT_ON(priority = 15, high = false),
     PRAISE(priority = 10, high = false),
 
     /** 주행 종료 후 성적표 요약. 중재자를 거치지 않는다. */
@@ -35,6 +43,9 @@ object MessageCatalog {
     fun blinkerOmission(): String = "차선 바꿀 땐 깜빡이 먼저 켜요!"
     fun hardBrake(): String = "조금 더 일찍, 부드럽게 밟아볼까요?"
     fun praise(): String = "깜빡이 아주 잘 켜고 있어요. 좋아요!"
+    fun blinkerLeftOn(): String = "깜빡이가 아직 켜져 있어요. 꺼 주세요."
+    fun turnSpeed(): String = "돌 때는 속도를 줄여요. 천천히요."
+    fun gearShiftMoving(): String = "기어는 완전히 멈춘 뒤에 바꿔요."
 
     /** 상황 예고. 거리는 말하지 않는다(녹음 클립으로 재생하기 위해 문구를 고정). */
     fun preview(type: SituationType): String = when (type) {

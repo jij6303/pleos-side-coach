@@ -27,6 +27,9 @@ import com.jij6303.sidecoach.domain.situation.SituationType
 import com.jij6303.sidecoach.domain.tips.CarTip
 import com.jij6303.sidecoach.domain.tips.CarTipSpeaker
 import com.jij6303.sidecoach.domain.detect.BlinkerOmissionDetector
+import com.jij6303.sidecoach.domain.detect.BlinkerLeftOnDetector
+import com.jij6303.sidecoach.domain.detect.GearShiftWhileMovingDetector
+import com.jij6303.sidecoach.domain.detect.TurnSpeedDetector
 import com.jij6303.sidecoach.domain.detect.HardBrakeDetector
 import com.jij6303.sidecoach.domain.trip.TripRecorder
 import com.jij6303.sidecoach.ui.UiMode
@@ -141,7 +144,13 @@ object ServiceLocator {
         )
         coachingPipeline = CoachingPipeline(
             updates = drivingStateRepository.updates,
-            detectors = listOf(BlinkerOmissionDetector(), HardBrakeDetector()),
+            detectors = listOf(
+                BlinkerOmissionDetector(),
+                HardBrakeDetector(),
+                BlinkerLeftOnDetector(),
+                TurnSpeedDetector(),
+                GearShiftWhileMovingDetector(),
+            ),
             arbiter = CoachingArbiter(),
             recorder = TripRecorder(),
             naviEvents = naviEventSource.events,
@@ -159,6 +168,9 @@ object ServiceLocator {
                 MessageCatalog.blinkerOmission() to R.raw.coach_blinker_omission,
                 MessageCatalog.hardBrake() to R.raw.coach_hard_brake,
                 MessageCatalog.praise() to R.raw.coach_praise,
+                MessageCatalog.blinkerLeftOn() to R.raw.coach_blinker_left_on,
+                MessageCatalog.turnSpeed() to R.raw.coach_turn_speed,
+                MessageCatalog.gearShiftMoving() to R.raw.coach_gear_shift_moving,
                 MessageCatalog.preview(SituationType.ROUNDABOUT) to R.raw.preview_roundabout,
                 MessageCatalog.preview(SituationType.SCHOOL_ZONE) to R.raw.preview_school_zone,
                 MessageCatalog.preview(SituationType.UNPROTECTED_LEFT) to R.raw.preview_unprotected_left,

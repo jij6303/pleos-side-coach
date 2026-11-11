@@ -49,6 +49,10 @@ class TripRecorder(private val praiseStreak: Int = DEFAULT_PRAISE_STREAK) {
                 _stats.value = s.copy(hardBrakes = s.hardBrakes + 1)
                 false
             }
+            // #49 코칭은 성적표 통계에 넣지 않는다 (음성 코칭만)
+            is DetectionEvent.BlinkerLeftOn,
+            is DetectionEvent.TurnTooFast,
+            is DetectionEvent.GearShiftWhileMoving -> false
         }
     }
 
