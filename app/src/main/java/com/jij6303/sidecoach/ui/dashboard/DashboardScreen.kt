@@ -111,14 +111,22 @@ private fun VehicleGrid(s: DrivingSnapshot) {
 private fun StatsGrid(stats: TripStats) {
     val signal = SideCoachTheme.signal
     val rate = stats.blinkerUsageRate
-    EqualRow {
-        StatTile("차선 변경", "${stats.laneChanges}회", it, caption = "깜빡이 켬 ${stats.signalledLaneChanges}회")
-        StatTile(
-            "깜빡이 사용률", percent(rate), it,
-            progress = rate ?: 0f,
-            progressTone = if ((rate ?: 1f) >= 0.8f) signal.praise else signal.turn,
-        )
-        StatTile("급제동", "${stats.hardBrakes}회", it, caption = if (stats.hardBrakes == 0) "부드러워요" else "조금 더 일찍 밟아요")
+    Column(verticalArrangement = Arrangement.spacedBy(Gap)) {
+        EqualRow {
+            StatTile("차선 변경", "${stats.laneChanges}회", it, caption = "깜빡이 켬 ${stats.signalledLaneChanges}회")
+            StatTile(
+                "깜빡이 사용률", percent(rate), it,
+                progress = rate ?: 0f,
+                progressTone = if ((rate ?: 1f) >= 0.8f) signal.praise else signal.turn,
+            )
+            StatTile("급제동", "${stats.hardBrakes}회", it, caption = if (stats.hardBrakes == 0) "부드러워요" else "조금 더 일찍 밟아요")
+        }
+        // 성적표와 같은 코칭 항목을 보여준다 (#55)
+        EqualRow {
+            StatTile("깜빡이 끄기", "${stats.blinkerLeftOn}회", it, caption = if (stats.blinkerLeftOn == 0) "잘 껐어요" else "돌고 나서 켜 둔 횟수")
+            StatTile("회전 속도", "${stats.turnTooFast}회", it, caption = if (stats.turnTooFast == 0) "천천히 잘 돌았어요" else "빠르게 돈 횟수")
+            StatTile("기어 변경", "${stats.gearShiftsMoving}회", it, caption = if (stats.gearShiftsMoving == 0) "멈춘 뒤 잘 바꿨어요" else "움직이며 바꾼 횟수")
+        }
     }
 }
 
