@@ -1,5 +1,6 @@
 package com.jij6303.sidecoach.ui.report
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -32,6 +33,7 @@ import com.jij6303.sidecoach.domain.trip.TripStats
 import com.jij6303.sidecoach.ui.dashboard.Chip
 import com.jij6303.sidecoach.ui.dashboard.StatTile
 import com.jij6303.sidecoach.ui.dashboard.percent
+import com.jij6303.sidecoach.ui.theme.ScreenHeader
 import com.jij6303.sidecoach.ui.theme.SideCoachTheme
 import com.jij6303.sidecoach.ui.theme.WIDE_MIN_DP
 import java.util.Locale
@@ -58,16 +60,7 @@ fun ReportScreen(report: TripReport, onClose: () -> Unit, modifier: Modifier = M
                 .padding(32.dp),
             verticalArrangement = Arrangement.spacedBy(Gap),
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    "오늘의 운전 성적표",
-                    style = MaterialTheme.typography.headlineMedium,
-                    color = MaterialTheme.colorScheme.onBackground,
-                    modifier = Modifier.weight(1f),
-                )
+            ScreenHeader(title = "오늘의 운전 성적표", subtitle = "이번 주행을 돌아봐요") {
                 Button(onClick = onClose, modifier = Modifier.height(64.dp)) {
                     Text("확인", style = MaterialTheme.typography.titleMedium)
                 }
@@ -96,7 +89,7 @@ private fun ScoreCard(report: TripReport, modifier: Modifier) {
         Grade.GOOD -> signal.neutral
         Grade.PRACTICE -> signal.turn
     }
-    Surface(modifier = modifier, shape = RoundedCornerShape(24.dp), color = tone.container) {
+    Surface(modifier = modifier, shape = RoundedCornerShape(28.dp), color = tone.container) {
         Column(Modifier.padding(32.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Chip(text = "점수", tone = tone)
             Row(verticalAlignment = Alignment.Bottom) {
@@ -116,7 +109,12 @@ private fun ScoreCard(report: TripReport, modifier: Modifier) {
 @Composable
 private fun NextTaskCard(report: TripReport, modifier: Modifier) {
     val tone = SideCoachTheme.signal.neutral
-    Surface(modifier = modifier, shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surface) {
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(28.dp),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+    ) {
         Column(Modifier.padding(32.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             Chip(text = "다음 연습 과제", tone = tone)
             Text(

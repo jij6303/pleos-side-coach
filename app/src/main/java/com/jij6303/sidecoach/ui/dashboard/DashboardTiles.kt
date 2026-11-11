@@ -1,6 +1,9 @@
 package com.jij6303.sidecoach.ui.dashboard
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -37,14 +40,19 @@ import com.jij6303.sidecoach.data.vehicle.TurnSignalState
 import com.jij6303.sidecoach.domain.coach.CoachMessage
 import com.jij6303.sidecoach.domain.coach.CoachType
 import com.jij6303.sidecoach.domain.parking.ParkingType
+import com.jij6303.sidecoach.ui.theme.BrandGlyph
+import com.jij6303.sidecoach.ui.theme.Hero
+import com.jij6303.sidecoach.ui.theme.Navy800
+import com.jij6303.sidecoach.ui.theme.Navy900
+import com.jij6303.sidecoach.ui.theme.ScreenHeader
 import com.jij6303.sidecoach.ui.theme.SideCoachTheme
 import com.jij6303.sidecoach.ui.theme.SignalTone
 import java.util.Locale
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
-private val TileShape = RoundedCornerShape(24.dp)
-private val TilePadding = 24.dp
+private val TileShape = RoundedCornerShape(28.dp)
+private val TilePadding = 28.dp
 
 /** 흰 카드 바탕의 타일. [unavailableReason]이 있으면 흐리게 하고 사유를 아래에 적는다. */
 @Composable
@@ -54,7 +62,12 @@ fun Tile(
     unavailableReason: String? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    Surface(modifier = modifier, shape = TileShape, color = MaterialTheme.colorScheme.surface) {
+    Surface(
+        modifier = modifier,
+        shape = TileShape,
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+    ) {
         Column(
             modifier = Modifier.padding(TilePadding),
             verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -93,6 +106,10 @@ fun CoachingCard(message: CoachMessage?, modifier: Modifier = Modifier) {
         CoachType.TIP -> signal.neutral to "도움말"
         null -> signal.neutral to "코칭 대기"
     }
+    if (message == null) {
+        IdleCoachingCard(modifier)
+        return
+    }
     Surface(modifier = modifier, shape = TileShape, color = tone.container) {
         Column(
             modifier = Modifier.padding(32.dp),
@@ -105,13 +122,44 @@ fun CoachingCard(message: CoachMessage?, modifier: Modifier = Modifier) {
                 color = tone.onContainer,
                 maxLines = 3,
             )
-            if (message == null) {
-                Text(
-                    "코칭이 필요한 순간에 바로 알려드릴게요.",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = tone.onContainer,
-                )
+        }
+    }
+}
+
+/** 코칭이 없을 때: 앱 아이콘처럼 남색 바탕에 노란 칩과 아이콘 그림을 둔 브랜드 카드. */
+@Composable
+private fun IdleCoachingCard(modifier: Modifier) {
+    Box(
+        modifier = modifier
+            .clip(TileShape)
+            .background(Hero.brush),
+    ) {
+        BrandGlyph(
+            size = 300.dp,
+            alpha = 0.95f,
+            modifier = Modifier.align(Alignment.CenterEnd).offset(x = 40.dp),
+        )
+        Column(
+            modifier = Modifier.padding(36.dp).padding(end = 200.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            Row(
+                modifier = Modifier
+                    .clip(CircleShape)
+                    .background(Hero.accent)
+                    .padding(horizontal = 16.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Box(Modifier.size(10.dp).clip(CircleShape).background(Navy800))
+                Text("코칭 대기", style = MaterialTheme.typography.labelLarge, color = Navy900)
             }
+            Text("안전 운전 중이에요", style = MaterialTheme.typography.headlineLarge, color = Hero.title)
+            Text(
+                "코칭이 필요한 순간에 바로 알려드릴게요.",
+                style = MaterialTheme.typography.bodyLarge,
+                color = Hero.body,
+            )
         }
     }
 }
@@ -121,7 +169,8 @@ fun Chip(text: String, tone: SignalTone, modifier: Modifier = Modifier) {
     Row(
         modifier = modifier
             .clip(CircleShape)
-            .background(tone.accent.copy(alpha = 0.18f))
+            .background(tone.accent.copy(alpha = 0.16f))
+            .border(1.dp, tone.accent.copy(alpha = 0.35f), CircleShape)
             .padding(horizontal = 16.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -162,7 +211,7 @@ fun GearTile(gear: GearPosition, unavailableReason: String?, modifier: Modifier 
                     Box(
                         modifier = Modifier
                             .size(64.dp)
-                            .clip(RoundedCornerShape(16.dp))
+                            .clip(RoundedCornerShape(18.dp))
                             .background(if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant),
                         contentAlignment = Alignment.Center,
                     ) {
@@ -379,40 +428,38 @@ fun DashboardHeader(
     modifier: Modifier = Modifier,
 ) {
     val signal = SideCoachTheme.signal
-    // 좁은 창(앱 창 1개)에서는 버튼·칩이 다음 줄로 넘어간다
-    FlowRow(
-        modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-        itemVerticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text("초보운전탈출", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onBackground)
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-            // 정차(P단)일 때만 버튼을 보인다 (주행 중 진입 차단, dev-architecture 5.2)
-            if (onOpenTips != null) {
-                Button(onClick = onOpenTips, modifier = Modifier.height(56.dp)) {
-                    Text("차량 기능 도움말", style = MaterialTheme.typography.titleMedium)
-                }
+    ScreenHeader(title = "초보운전탈출", subtitle = "옆자리 연수 코치", modifier = modifier) {
+        // 정차(P단)일 때만 버튼을 보인다 (주행 중 진입 차단, dev-architecture 5.2)
+        if (onOpenTips != null) {
+            Button(onClick = onOpenTips, modifier = Modifier.height(56.dp)) {
+                Text("차량 기능 도움말", style = MaterialTheme.typography.titleMedium)
             }
-            // 상황 예고가 가짜 경로 기반이면 시연임을 밝힌다
-            if (demoRoute) Chip(text = "시연 경로", tone = signal.neutral)
-            Chip(
-                text = if (usingFake) "Fake 신호" else "코칭 중",
-                tone = if (usingFake) signal.turn else signal.praise,
-            )
         }
+        // 상황 예고가 가짜 경로 기반이면 시연임을 밝힌다
+        if (demoRoute) Chip(text = "시연 경로", tone = signal.neutral)
+        Chip(
+            text = if (usingFake) "Fake 신호" else "코칭 중",
+            tone = if (usingFake) signal.turn else signal.praise,
+        )
     }
 }
 
 @Composable
 fun SectionTitle(text: String, modifier: Modifier = Modifier) {
-    Text(
-        text,
-        style = MaterialTheme.typography.titleMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = modifier.padding(start = 4.dp),
-        textAlign = TextAlign.Start,
-    )
+    // 앞에 새싹색 짧은 막대를 둬 구역이 바뀌는 곳을 눈에 띄게 한다
+    Row(
+        modifier = modifier.padding(start = 4.dp, top = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Box(Modifier.size(width = 6.dp, height = 22.dp).clip(CircleShape).background(MaterialTheme.colorScheme.tertiary))
+        Text(
+            text,
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onBackground,
+            textAlign = TextAlign.Start,
+        )
+    }
 }
 
 internal fun percent(rate: Float?): String = rate?.let { String.format(Locale.US, "%d%%", (it * 100).roundToInt()) } ?: "—"
