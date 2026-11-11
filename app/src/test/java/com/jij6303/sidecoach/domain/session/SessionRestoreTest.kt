@@ -14,6 +14,7 @@ import com.jij6303.sidecoach.domain.report.Grade
 import com.jij6303.sidecoach.domain.situation.SituationType
 import com.jij6303.sidecoach.domain.trip.TripRecorder
 import com.jij6303.sidecoach.domain.trip.TripSession
+import com.jij6303.sidecoach.domain.trip.TripStats
 import kotlinx.coroutines.flow.emptyFlow
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -148,5 +149,19 @@ class SessionRestoreTest {
         val restored = TripSession()
         restored.restore(state, nowMs = 20_000)
         assertEquals(TripSession.Event.Resumed, restored.onSnapshot(snap(30_000, GearPosition.DRIVE, 10f)))
+    }
+
+    @Test
+    fun `새 코칭 횟수도 저장하고, 예전 저장 데이터는 0으로 읽는다 (#53)`() {
+        val stats = TripStats(hardBrakes = 1, blinkerLeftOn = 2, turnTooFast = 3, gearShiftsMoving = 4)
+        val state = SessionState(savedAtMs = 1, recorder = TripRecorder.State(stats, 0),
+            arbiter = CoachingArbiter().exportState(), trip = null, announced = emptyMap(), pendingReport = null)
+        val json = SessionStateCodec.encode(state)
+        assertEquals(stats, SessionStateCodec.decode(json)!!.recorder.stats)
+
+        val old = org.json.JSONObject(json).apply {
+            getJSONObject("stats").apply { remove("blinkerLeftOn"); remove("turnTooFast"); remove("gearShiftsMoving") }
+        }.toString()
+        assertEquals(TripStats(hardBrakes = 1), SessionStateCodec.decode(old)!!.recorder.stats)
     }
 }

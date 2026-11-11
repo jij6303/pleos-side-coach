@@ -148,8 +148,26 @@ private fun MetricTiles(report: TripReport, columns: Int) {
         },
         {
             StatTile(
-                "급제동", "${stats.hardBrakes}회", it,
+                "깜빡이 끄기", count(stats.blinkerLeftOn), it,
+                caption = if (stats.blinkerLeftOn == 0) "잘 껐어요" else "돌고 나서 켜 둔 횟수",
+            )
+        },
+        {
+            StatTile(
+                "급제동", count(stats.hardBrakes), it,
                 caption = if (stats.hardBrakes == 0) "부드러워요" else "조금 더 일찍 밟아요",
+            )
+        },
+        {
+            StatTile(
+                "회전 속도", count(stats.turnTooFast), it,
+                caption = if (stats.turnTooFast == 0) "천천히 잘 돌았어요" else "빠르게 돈 횟수",
+            )
+        },
+        {
+            StatTile(
+                "기어 변경", count(stats.gearShiftsMoving), it,
+                caption = if (stats.gearShiftsMoving == 0) "멈춘 뒤 잘 바꿨어요" else "움직이며 바꾼 횟수",
             )
         },
         { StatTile("주행 시간", duration(m.movingMs), it, caption = "움직인 시간") },
@@ -166,6 +184,8 @@ private fun MetricTiles(report: TripReport, columns: Int) {
     }
 }
 
+private fun count(n: Int): String = "${n}회"
+
 internal fun duration(ms: Long): String {
     val totalSec = ms / 1000
     val min = totalSec / 60
@@ -175,7 +195,7 @@ internal fun duration(ms: Long): String {
 
 private val previewReport = ReportGenerator.generate(
     TripMetrics(startedAtMs = 0, endedAtMs = 600_000, movingMs = 512_000, distanceKm = 4.3f, maxSpeedKmh = 62f),
-    TripStats(laneChanges = 4, signalledLaneChanges = 3, hardBrakes = 1),
+    TripStats(laneChanges = 4, signalledLaneChanges = 3, hardBrakes = 1, blinkerLeftOn = 1),
 )
 
 @Preview(widthDp = 1680, heightDp = 1100)

@@ -9,6 +9,12 @@ data class TripStats(
     val laneChanges: Int = 0,
     val signalledLaneChanges: Int = 0,
     val hardBrakes: Int = 0,
+    /** 조향 후 깜빡이를 켠 채 계속 달린 횟수 (#49, #53). */
+    val blinkerLeftOn: Int = 0,
+    /** 회전 중 과속 횟수 (#49, #53). */
+    val turnTooFast: Int = 0,
+    /** 움직이는 중 기어 변경 횟수 (#49, #53). */
+    val gearShiftsMoving: Int = 0,
 ) {
     /** 깜빡이 사용률 (0~1). 차선 변경이 없으면 null. */
     val blinkerUsageRate: Float?
@@ -49,10 +55,18 @@ class TripRecorder(private val praiseStreak: Int = DEFAULT_PRAISE_STREAK) {
                 _stats.value = s.copy(hardBrakes = s.hardBrakes + 1)
                 false
             }
-            // #49 코칭은 성적표 통계에 넣지 않는다 (음성 코칭만)
-            is DetectionEvent.BlinkerLeftOn,
-            is DetectionEvent.TurnTooFast,
-            is DetectionEvent.GearShiftWhileMoving -> false
+            is DetectionEvent.BlinkerLeftOn -> {
+                _stats.value = s.copy(blinkerLeftOn = s.blinkerLeftOn + 1)
+                false
+            }
+            is DetectionEvent.TurnTooFast -> {
+                _stats.value = s.copy(turnTooFast = s.turnTooFast + 1)
+                false
+            }
+            is DetectionEvent.GearShiftWhileMoving -> {
+                _stats.value = s.copy(gearShiftsMoving = s.gearShiftsMoving + 1)
+                false
+            }
         }
     }
 

@@ -121,11 +121,18 @@ object SessionStateCodec {
         put("laneChanges", s.laneChanges)
         put("signalled", s.signalledLaneChanges)
         put("hardBrakes", s.hardBrakes)
+        put("blinkerLeftOn", s.blinkerLeftOn)
+        put("turnTooFast", s.turnTooFast)
+        put("gearShiftsMoving", s.gearShiftsMoving)
     }
 
     private fun stats(o: JSONObject) = TripStats(
         laneChanges = o.getInt("laneChanges"),
         signalledLaneChanges = o.getInt("signalled"),
         hardBrakes = o.getInt("hardBrakes"),
+        // #53 이전에 저장한 데이터에는 없으므로 0으로 읽는다
+        blinkerLeftOn = o.optInt("blinkerLeftOn", 0),
+        turnTooFast = o.optInt("turnTooFast", 0),
+        gearShiftsMoving = o.optInt("gearShiftsMoving", 0),
     )
 }
