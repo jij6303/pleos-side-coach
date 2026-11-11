@@ -1,12 +1,20 @@
 package com.jij6303.sidecoach.ui.driving
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -14,25 +22,40 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.jij6303.sidecoach.data.vehicle.GearPosition
+import com.jij6303.sidecoach.data.vehicle.TurnSignalState
 import com.jij6303.sidecoach.domain.DrivingSnapshot
 import com.jij6303.sidecoach.domain.coach.CoachMessage
 import com.jij6303.sidecoach.domain.coach.CoachType
 import com.jij6303.sidecoach.domain.coach.MessageCatalog
 import com.jij6303.sidecoach.domain.parking.ParkingUi
+import com.jij6303.sidecoach.domain.trip.TripStats
+import com.jij6303.sidecoach.ui.dashboard.percent
 import com.jij6303.sidecoach.ui.dashboard.Chip
 import com.jij6303.sidecoach.ui.theme.SideCoachTheme
+import com.jij6303.sidecoach.ui.theme.SignalColors
+import com.jij6303.sidecoach.ui.theme.SignalTone
+import com.jij6303.sidecoach.ui.theme.WIDE_MIN_DP
 import kotlin.math.roundToInt
 
 /** 코칭 문구를 화면에 남겨 두는 시간. 지난 코칭이 계속 떠 있으면 지금 상황으로 오해할 수 있다. */
 private const val MESSAGE_VISIBLE_MS = 10_000L
 
+private val PanelShape = RoundedCornerShape(32.dp)
+
 /**
  * 주행 규제 중 화면 (dev-architecture 5.2 DRIVING_VOICE).
- * 큰 글자 코칭 카드 1장 + 차속·기어 한 줄. 애니메이션·스크롤 없음. 코칭은 음성이 주이고 화면은 보조.
+ * 큰 글자 코칭 카드 + 아래 상태 띠(깜빡이·브레이크·이번 주행 기록). 애니메이션·스크롤 없음. 코칭은 음성이 주이고 화면은 보조.
+ *
+ * 차속·기어는 Pleos 고정 주행 영역에 이미 크게 나오므로 여기서 다시 그리지 않는다.
+ * 깜빡이를 켜면 시스템 측후방 카메라 창이 앱 영역 왼쪽 위를 덮으므로(에뮬레이터 실측) 코칭 문구는 카드 아래쪽에 붙인다.
  * 주차 코치 중([parking])에는 코칭 카드 대신 주차 카드를 보여준다. 입력은 주차 카드의 "다음" 버튼 하나뿐.
  */
 @Composable
@@ -40,15 +63,46 @@ fun DrivingScreen(
     snapshot: DrivingSnapshot,
     lastMessage: CoachMessage?,
     modifier: Modifier = Modifier,
+    stats: TripStats = TripStats(),
     parking: ParkingUi? = null,
     parkingMessage: CoachMessage? = null,
     onParkingNext: () -> Unit = {},
 ) {
     // 메시지 시각과 스냅샷 시각은 같은 시계(elapsedRealtime)라 별도 타이머 없이 비교할 수 있다
     val message = lastMessage?.takeIf { snapshot.timestampMs - it.createdAtMs in 0..MESSAGE_VISIBLE_MS }
-    val signal = SideCoachTheme.signal
-    val (tone, label) = when (message?.type) {
-        CoachType.HARD_BRAKE, CoachType.SPEEDING -> signal.brake to "주의"
+
+    BoxWithConstraints(
+        modifier = modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+            .padding(24.dp),
+    ) {
+        val wide = maxWidth.value >= WIDE_MIN_DP
+        Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(24.dp)) {
+            val main = Modifier.fillMaxWidth().weight(1f)
+            if (parking != null) {
+                ParkingPanel(
+                    parking = parking,
+                    snapshot = snapshot,
+                    // 멈춤 안내는 틱에서 나와 스냅샷보다 늦을 수 있으므로 아래쪽 경계는 두지 않는다
+                    message = parkingMessage?.takeIf { snapshot.timestampMs - it.createdAtMs <= MESSAGE_VISIBLE_MS },
+                    onNext = onParkingNext,
+                    modifier = main,
+                )
+            } else {
+                CoachPanel(message, wide, main)
+            }
+            StatusStrip(snapshot, stats, wide, Modifier.fillMaxWidth())
+        }
+    }
+}
+
+// ───────────────────────── 코칭 카드 ─────────────────────────
+
+private fun toneOf(type: CoachType?, signal: SignalColors): Pair<SignalTone, String> =
+    when (type) {
+        CoachType.HARD_BRAKE -> signal.brake to "급제동"
+        CoachType.SPEEDING -> signal.brake to "과속 주의"
         CoachType.BLINKER_OMISSION -> signal.turn to "깜빡이"
         CoachType.PRAISE -> signal.praise to "칭찬"
         CoachType.PREVIEW -> signal.neutral to "곧 만나요"
@@ -58,89 +112,160 @@ fun DrivingScreen(
         null -> signal.neutral to "코칭 중"
     }
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .padding(32.dp),
-        verticalArrangement = Arrangement.spacedBy(24.dp),
-    ) {
-        if (parking != null) {
-            ParkingPanel(
-                parking = parking,
-                snapshot = snapshot,
-                // 멈춤 안내는 틱에서 나와 스냅샷보다 늦을 수 있으므로 아래쪽 경계는 두지 않는다
-                message = parkingMessage?.takeIf { snapshot.timestampMs - it.createdAtMs <= MESSAGE_VISIBLE_MS },
-                onNext = onParkingNext,
-                modifier = Modifier.fillMaxWidth().weight(1f),
-            )
-        } else Surface(
-            modifier = Modifier.fillMaxWidth().weight(1f),
-            shape = RoundedCornerShape(32.dp),
-            color = tone.container,
-        ) {
+/** 코칭 문구 카드. 왼쪽 강조 띠로 유형을 먼저 알리고, 코칭이 없으면 차분한 면 색으로 물러난다. */
+@Composable
+private fun CoachPanel(message: CoachMessage?, wide: Boolean, modifier: Modifier) {
+    val (tone, label) = toneOf(message?.type, SideCoachTheme.signal)
+    val idle = message == null
+    val container = if (idle) MaterialTheme.colorScheme.surface else tone.container
+    val ink = if (idle) MaterialTheme.colorScheme.onSurface else tone.onContainer
+    Surface(modifier = modifier, shape = PanelShape, color = container) {
+        Row(Modifier.fillMaxSize()) {
+            Box(Modifier.width(20.dp).fillMaxHeight().background(tone.accent))
             Column(
-                modifier = Modifier.padding(48.dp),
-                verticalArrangement = Arrangement.spacedBy(24.dp, Alignment.CenterVertically),
+                modifier = Modifier.fillMaxSize().padding(start = 56.dp, end = 56.dp, bottom = 64.dp),
+                verticalArrangement = Arrangement.spacedBy(28.dp, Alignment.Bottom),
             ) {
                 Chip(text = label, tone = tone)
                 Text(
                     text = message?.text ?: "안전 운전 중이에요",
-                    style = MaterialTheme.typography.displayMedium,
-                    color = tone.onContainer,
+                    style = if (wide) MaterialTheme.typography.displayLarge else MaterialTheme.typography.displayMedium,
+                    color = ink,
                     maxLines = 3,
                     overflow = TextOverflow.Ellipsis,
                 )
+                if (idle) {
+                    Text(
+                        "코칭이 필요한 순간에 음성으로 알려드릴게요",
+                        style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Normal),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
-        }
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-            verticalAlignment = Alignment.Bottom,
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
-            Text(
-                text = snapshot.speedKmh?.roundToInt()?.toString() ?: "—",
-                style = MaterialTheme.typography.displayMedium,
-                color = MaterialTheme.colorScheme.onBackground,
-            )
-            Text(
-                "km/h",
-                style = MaterialTheme.typography.titleLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(bottom = 8.dp).weight(1f),
-            )
-            Text(
-                text = gearLabel(snapshot.gear),
-                style = MaterialTheme.typography.displayMedium,
-                color = MaterialTheme.colorScheme.primary,
-            )
         }
     }
 }
 
-private fun gearLabel(gear: GearPosition) = when (gear) {
-    GearPosition.PARK -> "P"
-    GearPosition.REVERSE -> "R"
-    GearPosition.NEUTRAL -> "N"
-    GearPosition.DRIVE -> "D"
-    GearPosition.UNKNOWN -> "—"
+// ───────────────────────── 상태 띠 ─────────────────────────
+
+/** 깜빡이·브레이크와 이번 주행 기록. 넓으면 한 줄, 좁으면 두 줄. */
+@Composable
+private fun StatusStrip(snapshot: DrivingSnapshot, stats: TripStats, wide: Boolean, modifier: Modifier) {
+    Surface(modifier = modifier, shape = PanelShape, color = MaterialTheme.colorScheme.surface) {
+        if (wide) {
+            Row(
+                modifier = Modifier.padding(horizontal = 48.dp, vertical = 28.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                SignalRow(snapshot)
+                Spacer(Modifier.weight(1f))
+                StatRow(stats)
+            }
+        } else {
+            Column(
+                modifier = Modifier.padding(horizontal = 40.dp, vertical = 28.dp),
+                verticalArrangement = Arrangement.spacedBy(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                SignalRow(snapshot)
+                StatRow(stats)
+            }
+        }
+    }
 }
 
-@Preview(widthDp = 1680, heightDp = 1100)
+/** 이번 주행 기록 세 칸. 값이 0이 아니어도 꾸짖는 색은 쓰지 않는다(코칭은 음성 몫). */
+@Composable
+private fun StatRow(stats: TripStats) {
+    Row(horizontalArrangement = Arrangement.spacedBy(48.dp)) {
+        Stat("차선 변경", "${stats.laneChanges}회")
+        Stat("깜빡이 사용", percent(stats.blinkerUsageRate))
+        Stat("급제동", "${stats.hardBrakes}회")
+    }
+}
+
+@Composable
+private fun Stat(label: String, value: String) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(value, style = MaterialTheme.typography.headlineLarge, color = MaterialTheme.colorScheme.onSurface)
+        Text(label, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+/**
+ * 깜빡이 좌우 화살표 + 가운데 브레이크 표시. 켜진 것만 신호색.
+ * 비상등 중엔 TurnSignal이 OFF로 보고되므로(실측) 비상등이면 양쪽을 모두 켠다.
+ */
+@Composable
+private fun SignalRow(snapshot: DrivingSnapshot) {
+    val signal = SideCoachTheme.signal
+    val hazard = snapshot.hazardOn == true
+    val left = hazard || snapshot.turnSignal == TurnSignalState.LEFT
+    val right = hazard || snapshot.turnSignal == TurnSignalState.RIGHT
+    val braking = snapshot.brakePressed == true
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(20.dp)) {
+        TurnArrow(left = true, color = if (left) signal.turn.accent else signal.inactive)
+        Row(
+            modifier = Modifier
+                .clip(CircleShape)
+                .background(if (braking) signal.brake.container else MaterialTheme.colorScheme.surfaceVariant)
+                .padding(horizontal = 20.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Box(
+                Modifier.size(14.dp).clip(CircleShape)
+                    .background(if (braking) signal.brake.accent else signal.inactive),
+            )
+            Text(
+                if (hazard) "비상등" else "브레이크",
+                style = MaterialTheme.typography.titleMedium,
+                color = if (braking) signal.brake.onContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        TurnArrow(left = false, color = if (right) signal.turn.accent else signal.inactive)
+    }
+}
+
+@Composable
+private fun TurnArrow(left: Boolean, color: Color) {
+    Canvas(Modifier.size(width = 44.dp, height = 52.dp)) {
+        val w = size.width
+        val h = size.height
+        val path = Path().apply {
+            if (left) {
+                moveTo(0f, h / 2); lineTo(w, 0f); lineTo(w, h)
+            } else {
+                moveTo(w, h / 2); lineTo(0f, 0f); lineTo(0f, h)
+            }
+            close()
+        }
+        drawPath(path, color)
+    }
+}
+
+// ───────────────────────── 미리보기 ─────────────────────────
+
+@Preview(widthDp = 1682, heightDp = 1100)
 @Composable
 private fun DrivingScreenPreview() {
     SideCoachTheme {
         DrivingScreen(
-            snapshot = DrivingSnapshot(timestampMs = 5_000, speedKmh = 52f, gear = GearPosition.DRIVE),
+            snapshot = DrivingSnapshot(
+                timestampMs = 5_000, speedKmh = 52f, gear = GearPosition.DRIVE, turnSignal = TurnSignalState.LEFT,
+            ),
             lastMessage = CoachMessage(CoachType.BLINKER_OMISSION, MessageCatalog.blinkerOmission(), 1_000),
         )
     }
 }
 
-@Preview(widthDp = 800, heightDp = 1200)
+@Preview(widthDp = 841, heightDp = 1100)
 @Composable
 private fun DrivingScreenIdlePreview() {
     SideCoachTheme {
-        DrivingScreen(snapshot = DrivingSnapshot(speedKmh = 0f, gear = GearPosition.DRIVE), lastMessage = null)
+        DrivingScreen(
+            snapshot = DrivingSnapshot(speedKmh = 0f, gear = GearPosition.DRIVE, brakePressed = true),
+            lastMessage = null,
+        )
     }
 }
