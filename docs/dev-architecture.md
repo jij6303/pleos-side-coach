@@ -824,6 +824,22 @@ object GleoCallbackSender {
   ```
 - 녹화(✅): `adb exec-out screenrecord --output-format=h264 - > demo.h264` → ffmpeg로 mp4 변환
 
+### 10.1.1 시연 시나리오 자동 재생 (#61)
+
+`scripts/demo_scenario.py`가 **Virtual Console HTTP API**를 조작해 정해진 주행을 재생한다. 앱 코드는 그대로이고 실제 신호 경로(콘솔 → VHAL → SDK/AAOS → 앱)를 쓰므로 계기판·카메라 팝업·앱이 함께 움직인다.
+
+| API (실측) | 용도 |
+|---|---|
+| `POST /browser/session?client=ID` | 1초마다 하트비트. 없으면 모든 쓰기가 503 (`bridge_ready=false`) |
+| `PUT /vehicle/controls?speed=&accelerator=&brake=&steering=` | 차속(km/h)·페달(%)·조향(콘솔 부호, SDK와 반대) |
+| `PUT /vehicle/gear?gear=Park\|Reverse\|Neutral\|Drive` | 기어 |
+| `PUT /vehicle/turn-signal?mode=Off\|BlinkLeft\|BlinkRight` | 깜빡이 |
+
+- 시나리오(약 171초): 출발 → 회전교차로 예고 → 깜빡이 켠 차선 변경 3회(칭찬) → 어린이보호구역 예고 → 깜빡이 없는 차선 변경(누락) → 비보호좌회전 예고 → 깜빡이 끄기 잊음 → 회전 과속 → 급제동 → 움직이는 중 P → 기어 경고 + 성적표. 실측: 12개 음성이 겹치지 않고 순서대로 재생
+- 브라우저의 콘솔 탭은 닫아야 한다 (페이지가 자기 값으로 덮어씀)
+- 직전 P 뒤 60초 안에 출발하면 앱이 같은 주행으로 이어가(#51) 예고가 나오지 않으므로, 스크립트가 61초를 채울 때까지 기다린다
+- `--record`는 `adb screenrecord`(최대 3분, 2560×1440, **소리 없음**). 음성까지 담으려면 PC에서 창을 녹화한다
+
 ### 10.2 테스트 케이스
 
 | # | 시나리오 | 조작 | 기대 결과 |
