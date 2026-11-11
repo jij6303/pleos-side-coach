@@ -1,6 +1,8 @@
 package com.jij6303.sidecoach.ui.tips
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -26,10 +28,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.jij6303.sidecoach.domain.tips.CarTip
 import com.jij6303.sidecoach.ui.dashboard.Chip
+import com.jij6303.sidecoach.ui.theme.ScreenHeader
 import com.jij6303.sidecoach.ui.theme.SideCoachTheme
 import com.jij6303.sidecoach.ui.theme.WIDE_MIN_DP
 
@@ -60,13 +64,7 @@ fun CarTipsScreen(
                 .padding(32.dp),
             verticalArrangement = Arrangement.spacedBy(Gap),
         ) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    "차량 기능 도움말",
-                    style = MaterialTheme.typography.headlineMedium,
-                    color = MaterialTheme.colorScheme.onBackground,
-                    modifier = Modifier.weight(1f),
-                )
+            ScreenHeader(title = "차량 기능 도움말", subtitle = "버튼 위치와 쓰는 법을 알려드려요") {
                 OutlinedButton(onClick = onClose, modifier = Modifier.height(64.dp)) {
                     Text("닫기", style = MaterialTheme.typography.titleMedium)
                 }
@@ -87,19 +85,23 @@ fun CarTipsScreen(
 
 @Composable
 private fun TipList(selected: CarTip, onSelect: (CarTip) -> Unit, modifier: Modifier) {
-    val signal = SideCoachTheme.signal
-    Surface(modifier = modifier, shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surface) {
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(28.dp),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+    ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             CarTip.entries.forEach { tip ->
                 val active = tip == selected
                 Text(
                     tip.title,
                     style = MaterialTheme.typography.titleLarge,
-                    color = if (active) signal.neutral.onContainer else MaterialTheme.colorScheme.onSurface,
+                    color = if (active) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(if (active) signal.neutral.container else MaterialTheme.colorScheme.surface)
+                        .clip(RoundedCornerShape(18.dp))
+                        .background(if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface)
                         .clickable { onSelect(tip) }
                         .padding(horizontal = 20.dp, vertical = 18.dp),
                 )
@@ -110,7 +112,6 @@ private fun TipList(selected: CarTip, onSelect: (CarTip) -> Unit, modifier: Modi
 
 @Composable
 private fun TipTabs(selected: CarTip, onSelect: (CarTip) -> Unit) {
-    val signal = SideCoachTheme.signal
     Row(
         modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -120,10 +121,11 @@ private fun TipTabs(selected: CarTip, onSelect: (CarTip) -> Unit) {
             Text(
                 tip.title,
                 style = MaterialTheme.typography.titleMedium,
-                color = if (active) signal.neutral.onContainer else MaterialTheme.colorScheme.onSurface,
+                color = if (active) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier
                     .clip(RoundedCornerShape(28.dp))
-                    .background(if (active) signal.neutral.container else MaterialTheme.colorScheme.surface)
+                    .background(if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface)
+                    .border(1.dp, if (active) Color.Transparent else MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(28.dp))
                     .clickable { onSelect(tip) }
                     .padding(horizontal = 24.dp, vertical = 16.dp),
             )
@@ -134,7 +136,7 @@ private fun TipTabs(selected: CarTip, onSelect: (CarTip) -> Unit) {
 @Composable
 private fun TipDetail(tip: CarTip, onListen: (CarTip) -> Unit, modifier: Modifier) {
     val tone = SideCoachTheme.signal.neutral
-    Surface(modifier = modifier, shape = RoundedCornerShape(24.dp), color = tone.container) {
+    Surface(modifier = modifier, shape = RoundedCornerShape(28.dp), color = tone.container) {
         Column(Modifier.padding(40.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
             Chip(text = "이럴 땐 이렇게", tone = tone)
             Text(tip.title, style = MaterialTheme.typography.headlineLarge, color = tone.onContainer)

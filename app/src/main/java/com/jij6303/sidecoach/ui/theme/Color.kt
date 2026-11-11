@@ -4,19 +4,33 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 
-// 기본 색 (차분한 파랑 계열)
-val Blue700 = Color(0xFF1D4ED8)
-val Blue500 = Color(0xFF3B82F6)
-val Blue300 = Color(0xFF93C5FD)
+// 브랜드 색: 앱 아이콘(S2)의 남색 바탕, 노란 핸들 얼굴, 새싹 초록
+val Navy950 = Color(0xFF051327)
+val Navy900 = Color(0xFF071C3A)
+val Navy800 = Color(0xFF0B2A55) // 아이콘 바탕
+val Navy700 = Color(0xFF163A6E)
+val Navy600 = Color(0xFF24518F)
+val Navy500 = Color(0xFF3D6AAE)
+val Navy300 = Color(0xFF8FB2E8)
+val Navy200 = Color(0xFFC9D8F0)
+val Navy100 = Color(0xFFE4EBF6)
+val Navy50 = Color(0xFFF3F6FB)
 
-val Ink900 = Color(0xFF0F172A)
-val Ink800 = Color(0xFF1E293B)
-val Ink700 = Color(0xFF334155)
-val Ink500 = Color(0xFF64748B)
-val Ink400 = Color(0xFF94A3B8)
-val Ink200 = Color(0xFFE2E8F0)
-val Ink100 = Color(0xFFF1F5F9)
-val Ink50 = Color(0xFFF8FAFC)
+val Sun500 = Color(0xFFFFC845) // 아이콘 얼굴
+val Sun600 = Color(0xFFF2B01E)
+val Sun100 = Color(0xFFFFF3D3)
+
+val Sprout600 = Color(0xFF3CB371) // 새싹 줄기
+val Sprout400 = Color(0xFF5BD68A)
+val Sprout200 = Color(0xFF9BE8B5)
+
+// 글자·선용 회색 (남색 쪽으로 살짝 기운 회색)
+val Ink900 = Color(0xFF0E1A2E)
+val Ink700 = Color(0xFF3A4A63)
+val Ink500 = Color(0xFF5B6B84)
+val Ink400 = Color(0xFF8C9AB0)
+val Ink200 = Color(0xFFDCE3EE)
+val Ink100 = Color(0xFFEDF1F7)
 
 /**
  * 신호·코칭 유형별 색. 배경([container])과 그 위 글자([onContainer])는 대비 4.5:1 이상이 되도록 짝지었다.
@@ -35,19 +49,19 @@ data class SignalColors(
 )
 
 val LightSignalColors = SignalColors(
-    turn = SignalTone(accent = Color(0xFFF59E0B), container = Color(0xFFFEF3C7), onContainer = Color(0xFF78350F)),
+    turn = SignalTone(accent = Sun600, container = Sun100, onContainer = Color(0xFF5C3F00)),
     brake = SignalTone(accent = Color(0xFFEF4444), container = Color(0xFFFEE2E2), onContainer = Color(0xFF7F1D1D)),
-    praise = SignalTone(accent = Color(0xFF22C55E), container = Color(0xFFDCFCE7), onContainer = Color(0xFF14532D)),
-    neutral = SignalTone(accent = Blue500, container = Color(0xFFDBEAFE), onContainer = Color(0xFF1E3A8A)),
+    praise = SignalTone(accent = Sprout600, container = Color(0xFFE2F6EA), onContainer = Color(0xFF0F4A2A)),
+    neutral = SignalTone(accent = Navy600, container = Navy100, onContainer = Navy900),
     inactive = Ink200,
 )
 
 val DarkSignalColors = SignalColors(
-    turn = SignalTone(accent = Color(0xFFFBBF24), container = Color(0xFF451A03), onContainer = Color(0xFFFDE68A)),
+    turn = SignalTone(accent = Sun500, container = Color(0xFF3A2C05), onContainer = Color(0xFFFFE6A3)),
     brake = SignalTone(accent = Color(0xFFF87171), container = Color(0xFF450A0A), onContainer = Color(0xFFFECACA)),
-    praise = SignalTone(accent = Color(0xFF4ADE80), container = Color(0xFF052E16), onContainer = Color(0xFFBBF7D0)),
-    neutral = SignalTone(accent = Blue300, container = Color(0xFF172554), onContainer = Color(0xFFBFDBFE)),
-    inactive = Ink700,
+    praise = SignalTone(accent = Sprout400, container = Color(0xFF0A3320), onContainer = Sprout200),
+    neutral = SignalTone(accent = Navy300, container = Navy700, onContainer = Navy100),
+    inactive = Color(0xFF2A4470),
 )
 
 val LocalSignalColors = staticCompositionLocalOf { LightSignalColors }
