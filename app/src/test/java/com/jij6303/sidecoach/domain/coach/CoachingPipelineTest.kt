@@ -95,4 +95,20 @@ class CoachingPipelineTest {
         assertEquals(m, pipeline.lastMessage.value)
         assertNull(pipeline.processNavi(NaviEvent.Situation("r", SituationType.ROUNDABOUT, 200f, 9_000)))
     }
+
+    @Test
+    fun `달리는 중 P에 넣으면 성적표와 함께 기어 경고를 바로 말한다`() {
+        val p = CoachingPipeline(
+            updates = emptyFlow(),
+            detectors = listOf(com.jij6303.sidecoach.domain.detect.GearShiftWhileMovingDetector()),
+            arbiter = CoachingArbiter(),
+            recorder = TripRecorder(),
+        )
+        (0L..10_000L step 1_000).forEach {
+            p.process(DrivingSnapshot(timestampMs = it, speedKmh = 30f, gear = GearPosition.DRIVE))
+        }
+        p.process(DrivingSnapshot(timestampMs = 11_000, speedKmh = 30f, gear = GearPosition.PARK))
+        assertNotNull(p.lastReport.value)
+        assertEquals(CoachType.GEAR_SHIFT_MOVING, p.lastMessage.value?.type)
+    }
 }

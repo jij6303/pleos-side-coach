@@ -98,6 +98,9 @@ fun CoachingCard(message: CoachMessage?, modifier: Modifier = Modifier) {
     val (tone, label) = when (message?.type) {
         CoachType.HARD_BRAKE -> signal.brake to "급제동"
         CoachType.BLINKER_OMISSION -> signal.turn to "깜빡이"
+        CoachType.BLINKER_LEFT_ON -> signal.turn to "깜빡이 끄기"
+        CoachType.TURN_SPEED -> signal.turn to "회전 속도"
+        CoachType.GEAR_SHIFT_MOVING -> signal.brake to "기어 변경"
         CoachType.PRAISE -> signal.praise to "칭찬"
         CoachType.SPEEDING -> signal.brake to "과속"
         CoachType.PREVIEW -> signal.neutral to "상황 예고"

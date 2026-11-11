@@ -150,13 +150,22 @@ class CoachingPipeline(
         val tripEvent = tripSession.onSnapshot(s)
         if (tripEvent == TripSession.Event.Started) resetTrip()
 
+        val produced = mutableListOf<CoachMessage>()
         for (detector in detectors) {
             val event = detector.onSnapshot(s) ?: continue
             val praise = recorder.record(event)
-            toMessages(event, praise).forEach(arbiter::submit)
+            toMessages(event, praise).forEach {
+                produced += it
+                arbiter.submit(it)
+            }
         }
 
         if (tripEvent is TripSession.Event.Ended) {
+            // 움직이는 중 P에 넣으면 같은 순간 주행이 끝난다. 이 경고는 성적표보다 먼저 바로 말한다.
+            produced.firstOrNull { it.type == CoachType.GEAR_SHIFT_MOVING }?.let {
+                _lastMessage.value = it
+                _messages.tryEmit(it)
+            }
             val report = ReportGenerator.generate(tripEvent.metrics, recorder.stats.value)
             _lastReport.value = report
             // 성적표 요약은 중재자를 거치지 않고 바로 음성으로 보낸다 (주행이 끝나 다른 코칭과 겹치지 않음)
@@ -191,6 +200,12 @@ class CoachingPipeline(
             }
             is DetectionEvent.HardBrake ->
                 listOf(CoachMessage(CoachType.HARD_BRAKE, MessageCatalog.hardBrake(), ts))
+            is DetectionEvent.BlinkerLeftOn ->
+                listOf(CoachMessage(CoachType.BLINKER_LEFT_ON, MessageCatalog.blinkerLeftOn(), ts))
+            is DetectionEvent.TurnTooFast ->
+                listOf(CoachMessage(CoachType.TURN_SPEED, MessageCatalog.turnSpeed(), ts))
+            is DetectionEvent.GearShiftWhileMoving ->
+                listOf(CoachMessage(CoachType.GEAR_SHIFT_MOVING, MessageCatalog.gearShiftMoving(), ts))
         }
     }
 }
