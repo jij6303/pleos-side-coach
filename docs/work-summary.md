@@ -2,7 +2,7 @@
 
 > 기간: 2026-11-09 ~ 2026-11-12 (4일, 커밋 45개, 이슈·PR #1 ~ #62)
 > 공모전 1차 마감: 2026-11-15
-> 상세 개발 일지는 `PROJECT_LOG.md`(#1~#39), 설계·판정 로직은 `docs/dev-architecture.md` 참고
+> 상세 개발 일지는 `PROJECT_LOG.md`(#1~#61), 설계·판정 로직은 `docs/dev-architecture.md` 참고
 
 ---
 
