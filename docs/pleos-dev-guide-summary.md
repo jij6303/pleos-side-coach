@@ -80,7 +80,7 @@
 - 대비 4.5:1 이상. 글자는 최소 12sp, 줄간격 1.5배.
 - 문장 길이: 한 줄 80자 이하, 3줄 이하. 영어는 120자 또는 24단어 이하.
 - 중요한 텍스트는 높이 5mm 이상, 보조 텍스트는 3mm 이상.
-- 서체는 Asta Sans(Google Fonts). 한 손으로 조작할 수 있어야 하고, 아이콘에는 텍스트 라벨을 붙임. 주간/야간 모드를 지원함. 광고는 금지됨.
+- 서체는 Asta Sans(Google Fonts). **실측(#55): Pleos Connect 시스템 기본 서체(sans-serif)가 이미 Asta Sans라 앱에 따로 넣을 필요 없음.** 한 손으로 조작할 수 있어야 하고, 아이콘에는 텍스트 라벨을 붙임. 주간/야간 모드를 지원함. 광고는 금지됨.
 - 텍스트 입력 대신 프리셋, 최근 항목, 음성 입력을 우선함.
 - 카테고리 8종: Maps/Navigation, Mobility Services, Lifestyle, Entertainment, Business, Music/Audio, Kids, Social/Communication
 

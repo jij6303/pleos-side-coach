@@ -7,7 +7,10 @@ import androidx.compose.ui.unit.sp
 
 /**
  * 차량 화면용 글자 크기. 가이드 최소 12sp보다 넉넉하게 잡고, 줄간격은 약 1.5배.
- * 서체는 가이드 권장 Asta Sans 적용 전까지 기본 서체를 쓴다.
+ *
+ * 서체: 가이드 권장 Asta Sans. 실측(#55): Pleos Connect는 시스템 기본 서체(sans-serif)가 이미 Asta Sans다
+ * (/product/etc/fonts_customization.xml, AstaSansOTF-Light~ExtraBold). 그래서 폰트 파일을 앱에 넣지 않고
+ * 기본 서체를 그대로 쓴다. 넣어 봐도 화면이 같았고 APK만 5.7MB 커졌다.
  */
 val Typography = Typography(
     displayLarge = TextStyle(fontWeight = FontWeight.Bold, fontSize = 88.sp, lineHeight = 96.sp),
