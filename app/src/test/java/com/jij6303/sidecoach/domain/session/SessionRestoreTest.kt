@@ -83,7 +83,7 @@ class SessionRestoreTest {
         p.process(snap(13_000, GearPosition.DRIVE, 0f))
         p.process(snap(14_000, GearPosition.PARK, 0f))
         val saved = SessionStateCodec.decode(SessionStateCodec.encode(p.exportState()))!!
-        assertNull(saved.trip)
+        assertEquals(14_000L, saved.trip?.pausedAtMs) // P에 넣은 시각: 이어가기 판단용 (#51)
 
         val after = pipeline().apply { restore(saved, nowMs = 15_000) }
         assertEquals(Grade.GREAT, after.lastReport.value?.grade)
@@ -132,5 +132,21 @@ class SessionRestoreTest {
         assertNull(SessionStateCodec.decode("{broken"))
         assertNull(SessionStateCodec.decode("""{"v":999}"""))
         assertNull(SessionStateCodec.decode(null))
+    }
+
+    @Test
+    fun `P에 넣은 뒤 앱이 다시 켜져도 60초 안에 출발하면 이어간다`() {
+        val session = TripSession()
+        session.onSnapshot(snap(0, GearPosition.DRIVE, 36f))
+        session.onSnapshot(snap(10_000, GearPosition.DRIVE, 0f))
+        session.onSnapshot(snap(11_000, GearPosition.PARK, 0f))
+        val state = SessionStateCodec.decode(
+            SessionStateCodec.encode(SessionState(savedAtMs = 11_000, recorder = TripRecorder().exportState(),
+                arbiter = CoachingArbiter().exportState(), trip = session.exportState(), announced = emptyMap(), pendingReport = null)),
+        )!!.trip
+
+        val restored = TripSession()
+        restored.restore(state, nowMs = 20_000)
+        assertEquals(TripSession.Event.Resumed, restored.onSnapshot(snap(30_000, GearPosition.DRIVE, 10f)))
     }
 }

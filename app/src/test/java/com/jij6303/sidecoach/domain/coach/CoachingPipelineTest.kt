@@ -81,10 +81,36 @@ class CoachingPipelineTest {
         assertEquals(Grade.GREAT, report.grade)
         assertEquals(60f, report.metrics.maxSpeedKmh, 0f)
 
-        // 다시 D: 새 주행 → 성적표·통계 초기화
-        pipeline.process(DrivingSnapshot(timestampMs = 20_000, speedKmh = 0f, gear = GearPosition.DRIVE))
+        // D로 바꾸기만 하면 아직 새 주행이 아니다 → 성적표·통계 유지 (#51)
+        pipeline.process(DrivingSnapshot(timestampMs = 100_000, speedKmh = 0f, gear = GearPosition.DRIVE))
+        assertNotNull(pipeline.lastReport.value)
+        assertEquals(1, pipeline.recorder.stats.value.hardBrakes)
+
+        // 60초가 지나 실제로 출발: 새 주행 → 성적표·통계 초기화
+        pipeline.process(DrivingSnapshot(timestampMs = 101_000, speedKmh = 10f, gear = GearPosition.DRIVE))
         assertNull(pipeline.lastReport.value)
         assertEquals(0, pipeline.recorder.stats.value.hardBrakes)
+    }
+
+    @Test
+    fun `P에 넣고 60초 안에 다시 출발하면 통계를 이어간다`() {
+        pipeline.process(DrivingSnapshot(timestampMs = 0, speedKmh = 60f, gear = GearPosition.DRIVE, brakePressed = true))
+        pipeline.process(DrivingSnapshot(timestampMs = 10_000, speedKmh = 60f, gear = GearPosition.DRIVE, brakePressed = true))
+        pipeline.process(DrivingSnapshot(timestampMs = 11_000, speedKmh = 30f, gear = GearPosition.DRIVE, brakePressed = true))
+        pipeline.process(DrivingSnapshot(timestampMs = 13_000, speedKmh = 0f, gear = GearPosition.DRIVE))
+        pipeline.process(DrivingSnapshot(timestampMs = 14_000, speedKmh = 0f, gear = GearPosition.PARK))
+        assertNotNull(pipeline.lastReport.value)
+
+        pipeline.process(DrivingSnapshot(timestampMs = 40_000, speedKmh = 0f, gear = GearPosition.DRIVE))
+        pipeline.process(DrivingSnapshot(timestampMs = 41_000, speedKmh = 10f, gear = GearPosition.DRIVE))
+        assertNull(pipeline.lastReport.value) // 이어가면 성적표는 닫힌다
+        assertEquals(1, pipeline.recorder.stats.value.hardBrakes)
+
+        pipeline.process(DrivingSnapshot(timestampMs = 50_000, speedKmh = 0f, gear = GearPosition.DRIVE))
+        pipeline.process(DrivingSnapshot(timestampMs = 51_000, speedKmh = 0f, gear = GearPosition.PARK))
+        val report = pipeline.lastReport.value!!
+        assertEquals(1, report.stats.hardBrakes)
+        assertEquals(0L, report.metrics.startedAtMs) // 처음 출발 시각 그대로
     }
 
     @Test

@@ -33,6 +33,7 @@ object SessionStateCodec {
                 put("movingMs", t.movingMs)
                 put("distanceKm", t.distanceKm)
                 put("maxSpeed", t.maxSpeedKmh.toDouble())
+                t.pausedAtMs?.let { put("pausedAt", it) }
             })
         }
         put("announced", JSONObject().apply { s.announced.forEach { (k, v) -> put(k, v) } })
@@ -82,6 +83,7 @@ object SessionStateCodec {
                         movingMs = t.getLong("movingMs"),
                         distanceKm = t.getDouble("distanceKm"),
                         maxSpeedKmh = t.getDouble("maxSpeed").toFloat(),
+                        pausedAtMs = if (t.has("pausedAt")) t.getLong("pausedAt") else null,
                     )
                 },
                 announced = o.getJSONObject("announced").let { a ->

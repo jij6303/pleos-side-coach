@@ -30,7 +30,8 @@ import kotlinx.coroutines.launch
  * 스냅샷 → 디텍터 → 기록·중재 → 코칭 메시지.
  * 내비 이벤트는 [previewEngine]이 상황 예고로 바꿔 중재자에 넣는다.
  * 스냅샷과 내비 이벤트는 한 흐름으로 합쳐 순서대로 처리한다 (디텍터·중재자 동시 접근 방지).
- * [tripSession]이 주행 시작(P 아님)을 알리면 통계를 초기화하고, 종료(P)를 알리면 성적표를 만든다.
+ * [tripSession]이 주행 시작(P 아닌 기어로 출발)을 알리면 통계를 초기화하고, 종료(P)를 알리면 성적표를 만든다.
+ * P에 잠깐 넣었다 다시 출발하면(이어가기) 통계를 유지한다.
  * 음성 출력은 [messages]를 구독하는 VoiceCoach가 맡는다.
  *
  * 상태 저장(#31): 코칭 중 [saveIntervalMs]마다, 성적표가 만들어질 때, 멈출 때 [stateSink]로 내보낸다.
@@ -148,7 +149,12 @@ class CoachingPipeline(
     internal fun process(s: DrivingSnapshot): CoachMessage? = synchronized(lock) {
         lastInputMs = s.timestampMs
         val tripEvent = tripSession.onSnapshot(s)
-        if (tripEvent == TripSession.Event.Started) resetTrip()
+        when (tripEvent) {
+            TripSession.Event.Started -> resetTrip()
+            // 잠깐 P에 넣었다 다시 출발: 통계는 이어가고 떠 있던 성적표만 닫는다 (#51)
+            TripSession.Event.Resumed -> _lastReport.value = null
+            else -> Unit
+        }
 
         val produced = mutableListOf<CoachMessage>()
         for (detector in detectors) {

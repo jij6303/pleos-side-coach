@@ -14,7 +14,14 @@ data class TripMetrics(
 )
 
 /**
- * 기어로 주행 단위를 나눈다. P가 아닌 기어가 되면 시작, P로 돌아오면 끝.
+ * 기어와 차속으로 주행 단위를 나눈다.
+ *
+ * - 시작: P가 아닌 기어에서 실제로 움직이기 시작할 때([Config.movingSpeedKmh] 초과).
+ *   P에서 기어만 바꿨다 돌아오면 주행이 시작되지 않아 이전 기록이 남는다 (#51).
+ * - 끝: P에 넣을 때. 성적표를 바로 만든다.
+ * - 이어가기: P에 넣고 [Config.resumeWindowMs] 안에 다시 움직이면 같은 주행으로 이어간다
+ *   (신호 대기 중 P에 넣었다 출발하는 경우, #51). 그보다 늦으면 새 주행이다.
+ *
  * 시간은 스냅샷 timestamp를 쓴다 (JVM 테스트에서 조작 가능).
  */
 class TripSession(private val config: Config = Config()) {
@@ -22,18 +29,24 @@ class TripSession(private val config: Config = Config()) {
     /** 💭 설계 가정. */
     data class Config(
         val movingSpeedKmh: Float = 3f,
-        /** 이보다 짧게 움직였으면 성적표를 만들지 않는다 (P↔D만 바꾼 경우 등). */
+        /** 이보다 짧게 움직였으면 성적표를 만들지 않는다. */
         val minMovingMs: Long = 5_000,
+        /** P에 넣은 뒤 이 시간 안에 다시 움직이면 같은 주행. */
+        val resumeWindowMs: Long = 60_000,
     )
 
     sealed interface Event {
         data object Started : Event
+        /** P에 잠깐 넣었다가 다시 출발해 같은 주행을 이어감. 통계는 유지한다. */
+        data object Resumed : Event
         data class Ended(val metrics: TripMetrics) : Event
         /** 너무 짧아서 성적표 없이 끝남. */
         data object Discarded : Event
     }
 
     private var active = false
+    /** P에 넣어 멈춘 시각. 이어갈 수 있는 주행이 없으면 null. */
+    private var pausedAt: Long? = null
     private var startedAt = 0L
     private var lastTs = 0L
     private var lastSpeed = 0f
@@ -45,42 +58,60 @@ class TripSession(private val config: Config = Config()) {
 
     fun onSnapshot(s: DrivingSnapshot): Event? {
         if (s.gear == GearPosition.UNKNOWN) return null
-        return if (!active) {
-            if (s.gear == GearPosition.PARK) return null
-            start(s)
-            Event.Started
-        } else {
-            accumulate(s)
-            if (s.gear != GearPosition.PARK) return null
-            active = false
-            if (movingMs < config.minMovingMs) {
-                Event.Discarded
+        if (!active) {
+            val speed = s.speedKmh ?: return null
+            if (s.gear == GearPosition.PARK || speed <= config.movingSpeedKmh) return null
+            val paused = pausedAt
+            return if (paused != null && s.timestampMs - paused <= config.resumeWindowMs) {
+                resume(s)
+                Event.Resumed
             } else {
-                Event.Ended(
-                    TripMetrics(
-                        startedAtMs = startedAt,
-                        endedAtMs = s.timestampMs,
-                        movingMs = movingMs,
-                        distanceKm = distanceKm.toFloat(),
-                        maxSpeedKmh = maxSpeed,
-                    ),
-                )
+                start(s)
+                Event.Started
             }
+        }
+        accumulate(s)
+        if (s.gear != GearPosition.PARK) return null
+        active = false
+        pausedAt = s.timestampMs
+        return if (movingMs < config.minMovingMs) {
+            Event.Discarded
+        } else {
+            Event.Ended(
+                TripMetrics(
+                    startedAtMs = startedAt,
+                    endedAtMs = s.timestampMs,
+                    movingMs = movingMs,
+                    distanceKm = distanceKm.toFloat(),
+                    maxSpeedKmh = maxSpeed,
+                ),
+            )
         }
     }
 
     fun reset() {
         active = false
+        pausedAt = null
     }
 
     private fun start(s: DrivingSnapshot) {
         active = true
+        pausedAt = null
         startedAt = s.timestampMs
         lastTs = s.timestampMs
         lastSpeed = s.speedKmh ?: 0f
         movingMs = 0
         distanceKm = 0.0
         maxSpeed = lastSpeed
+    }
+
+    /** 멈춰 있던 동안은 주행 시간·거리에 넣지 않고 지표를 이어간다. */
+    private fun resume(s: DrivingSnapshot) {
+        active = true
+        pausedAt = null
+        lastTs = s.timestampMs
+        lastSpeed = s.speedKmh ?: 0f
+        if (lastSpeed > maxSpeed) maxSpeed = lastSpeed
     }
 
     /**
@@ -96,29 +127,32 @@ class TripSession(private val config: Config = Config()) {
         if (lastSpeed > maxSpeed) maxSpeed = lastSpeed
     }
 
-    /** 저장용 진행 중 주행 상태. */
+    /** 저장용 주행 상태. [pausedAtMs]가 있으면 P에 넣어 멈춘 상태(이어가기 대기). */
     data class State(
         val startedAtMs: Long,
         val lastSpeedKmh: Float,
         val movingMs: Long,
         val distanceKm: Double,
         val maxSpeedKmh: Float,
+        val pausedAtMs: Long? = null,
     )
 
-    /** 진행 중인 주행이 없으면 null. */
+    /** 진행 중이거나 이어갈 수 있는 주행이 없으면 null. */
     fun exportState(): State? =
-        if (!active) null else State(startedAt, lastSpeed, movingMs, distanceKm, maxSpeed)
+        if (!active && pausedAt == null) null
+        else State(startedAt, lastSpeed, movingMs, distanceKm, maxSpeed, pausedAt.takeIf { !active })
 
     /**
-     * 진행 중이던 주행을 이어간다. 마지막 시각을 [nowMs]로 맞춰,
+     * 저장된 주행을 이어간다. 마지막 시각을 [nowMs]로 맞춰,
      * 프로세스가 내려가 있던 동안은 주행 시간·거리에 넣지 않는다.
      */
     fun restore(state: State?, nowMs: Long) {
         if (state == null) {
-            active = false
+            reset()
             return
         }
-        active = true
+        active = state.pausedAtMs == null
+        pausedAt = state.pausedAtMs
         startedAt = state.startedAtMs
         lastTs = nowMs
         lastSpeed = state.lastSpeedKmh
