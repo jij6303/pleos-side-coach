@@ -297,6 +297,13 @@ class PleosVehicleDataSource(private val ctx: Context) : VehicleDataSource {
 
 상태: IDLE → SWING_1 → SWING_2 → (판정) → IDLE
 
+> **#57 개정 (실측)**: 100km/h에서 깜빡이를 켜고 조향 0 → +51° → 0(3.8초)으로 차선을 바꿨는데 S자 조건(반대쪽 ≥ 12°)을 못 채워 누락됐다. 실차도 반대쪽 조향은 작은 경우가 많다. 그래서 다음과 같이 바꿨다.
+> - **한쪽으로 꺾었다 중립 복귀(2~8초)도 차선 변경**. S자는 그대로 인정
+> - 첫 조향이 2초 안에 중립에 오면 1.5초(`COUNTER_STEER`) 동안 반대쪽 조향을 기다려 S자로 이어 본다(`PAUSE`)
+> - 차선 변경 직후 1.5초 안에 시작한 반대쪽 조향은 되돌림으로 보고 세지 않는다(`COUNTER`)
+> - **90° 이상 꺾음(회전) 또는 8초 초과(커브)면 핸들이 중립에 올 때까지 아무것도 세지 않는다**(`WAIT_NEUTRAL`). 실측: 100°·159°까지 꺾었다 풀 때, 푸는 구간이 차선 변경으로 세지던 문제를 막음
+> - 한계: 30km/h 이상에서 2~8초 동안 90° 미만으로 꺾었다 푸는 짧은 커브는 차선 변경으로 잡힐 수 있다 (차선 정보 없음)
+
 onSnapshot(s):
   if s.speedKmh < V_MIN or s.gear != D: reset(); return
   if s.hazardOn: reset(); return                                          // ✅ 실측: 비상등 중엔 TurnSignal=OFF로 보고됨 → 오경고 방지

@@ -112,13 +112,94 @@ class BlinkerOmissionDetectorTest {
     }
 
     @Test
-    fun `한쪽으로만 꺾고 돌아오면(커브·회전) 차선 변경이 아니다`() {
+    fun `한쪽으로 꺾었다 돌아오는 조향도 2~8초면 차선 변경 (#57)`() {
         val events = run(
             Triple(0L, 30f, off),
             Triple(2_000L, 30f, off),
             Triple(4_000L, 0f, off),
         )
+        assertEquals(listOf(DetectionEvent.LaneChange(left, signalled = false, timestampMs = 4_000)), events)
+    }
+
+    @Test
+    fun `실측 재현 - 100km에서 깜빡이 켜고 +51도 3_8초 뒤 복귀하면 정상 차선 변경 (#57)`() {
+        val events = listOf(
+            Triple(0L, 0f, left),          // 깜빡이 먼저
+            Triple(2_700L, 44f, left),
+            Triple(2_840L, 51f, left),
+            Triple(2_980L, 55f, left),
+            Triple(3_400L, 51f, left),
+            Triple(6_480L, 0f, left),
+        ).mapNotNull { (ts, deg, sig) -> detector.onSnapshot(snap(ts, deg, sig, speed = 99f)) }
+        assertEquals(listOf(DetectionEvent.LaneChange(left, signalled = true, timestampMs = 6_480)), events)
+    }
+
+    @Test
+    fun `차선 변경 직후 반대쪽 되돌림 조향은 한 번 더 세지 않는다 (#57)`() {
+        val events = run(
+            Triple(0L, 0f, off),
+            Triple(500L, -25f, off),
+            Triple(3_000L, 0f, off),      // 오른쪽 차선 변경 판정
+            Triple(3_500L, 15f, off),     // 되돌림
+            Triple(5_000L, 0f, off),
+            Triple(8_000L, 0f, off),
+        )
+        assertEquals(listOf(DetectionEvent.LaneChange(right, signalled = false, timestampMs = 3_000)), events)
+    }
+
+    @Test
+    fun `중립을 거쳐 반대로 꺾는 S자도 한 번으로 센다 (#57)`() {
+        val events = run(
+            Triple(0L, 0f, off),
+            Triple(300L, 20f, off),
+            Triple(1_200L, 0f, off),      // 2초 전에 중립 통과
+            Triple(1_500L, -20f, off),    // 반대쪽 되돌림 → S자
+            Triple(3_000L, 0f, off),
+        )
+        assertEquals(listOf(DetectionEvent.LaneChange(left, signalled = false, timestampMs = 3_000)), events)
+    }
+
+    @Test
+    fun `90도 넘게 꺾으면 회전이라 차선 변경이 아니다 (#57)`() {
+        val events = run(
+            Triple(0L, 30f, off),
+            Triple(1_000L, 120f, off),
+            Triple(3_000L, 30f, off),
+            Triple(4_000L, 0f, off),
+        )
         assertEquals(emptyList<DetectionEvent>(), events)
+    }
+
+    @Test
+    fun `실측 재현 - 100도까지 꺾었다 천천히 풀면 푸는 동안도 세지 않는다 (#57)`() {
+        val events = listOf(
+            0L to 0f, 1_000L to 100f, 1_290L to 92f, 1_430L to 85f, 1_840L to 77f,
+            1_940L to 66f, 2_630L to 51f, 5_840L to 0f,
+        ).mapNotNull { (ts, deg) -> detector.onSnapshot(snap(ts, deg, speed = 90f)) }
+        assertEquals(emptyList<DetectionEvent>(), events)
+    }
+
+    @Test
+    fun `8초 넘게 꺾은 커브는 핸들을 풀 때도 세지 않는다 (#57)`() {
+        val events = run(
+            Triple(0L, 30f, off),
+            Triple(5_000L, 30f, off),
+            Triple(9_000L, 30f, off),     // 8초 초과: 커브
+            Triple(12_000L, 30f, off),
+            Triple(13_000L, 0f, off),
+        )
+        assertEquals(emptyList<DetectionEvent>(), events)
+    }
+
+    @Test
+    fun `되돌림이 아닌 다음 차선 변경은 따로 센다 (#57)`() {
+        val events = run(
+            Triple(0L, 25f, off),
+            Triple(3_000L, 0f, off),
+            Triple(10_000L, 25f, off),    // 7초 뒤 같은 방향으로 또 변경
+            Triple(13_000L, 0f, off),
+        )
+        assertEquals(2, events.size)
     }
 
     @Test
