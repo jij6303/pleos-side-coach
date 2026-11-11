@@ -39,7 +39,9 @@ import com.jij6303.sidecoach.domain.parking.ParkingUi
 import com.jij6303.sidecoach.domain.trip.TripStats
 import com.jij6303.sidecoach.ui.dashboard.percent
 import com.jij6303.sidecoach.ui.dashboard.Chip
+import com.jij6303.sidecoach.ui.theme.Navy800
 import com.jij6303.sidecoach.ui.theme.SideCoachTheme
+import com.jij6303.sidecoach.ui.theme.Sun500
 import com.jij6303.sidecoach.ui.theme.SignalColors
 import com.jij6303.sidecoach.ui.theme.SignalTone
 import com.jij6303.sidecoach.ui.theme.WIDE_MIN_DP
@@ -130,7 +132,9 @@ private fun CoachPanel(message: CoachMessage?, wide: Boolean, modifier: Modifier
             modifier = Modifier.fillMaxSize().padding(start = 48.dp, end = 48.dp, bottom = 56.dp),
             verticalAlignment = Alignment.Bottom,
         ) {
-            CoachFace(look.mood, ring = tone.accent, modifier = Modifier.size(if (wide) 440.dp else 240.dp))
+            // 차분한 상태의 얼굴 고리는 남색 대신 밝은 파랑 (남색은 답답해 보임)
+            val ring = if (tone == SideCoachTheme.signal.neutral) FaceRingBlue else tone.accent
+            CoachFace(look.mood, ring = ring, modifier = Modifier.size(if (wide) 440.dp else 240.dp))
             // 말풍선 꼬리: 얼굴 쪽을 가리킨다
             Canvas(
                 Modifier
@@ -150,7 +154,7 @@ private fun CoachPanel(message: CoachMessage?, wide: Boolean, modifier: Modifier
                     .padding(horizontal = 48.dp, vertical = 40.dp),
                 verticalArrangement = Arrangement.spacedBy(20.dp),
             ) {
-                Chip(text = look.label, tone = tone)
+                if (idle) IdleChip(look.label) else Chip(text = look.label, tone = tone)
                 Text(
                     text = message?.text ?: "안전 운전 중이에요",
                     style = if (wide) MaterialTheme.typography.displayMedium else MaterialTheme.typography.headlineLarge,
@@ -168,6 +172,24 @@ private fun CoachPanel(message: CoachMessage?, wide: Boolean, modifier: Modifier
                 }
             }
         }
+    }
+}
+
+private val FaceRingBlue = Color(0xFF3B82F6)
+
+/** 대기 중 말풍선의 "코칭 중" 칩: 앱 아이콘처럼 남색 바탕에 노란 글자. */
+@Composable
+private fun IdleChip(text: String) {
+    Row(
+        modifier = Modifier
+            .clip(CircleShape)
+            .background(Navy800)
+            .padding(horizontal = 16.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Box(Modifier.size(10.dp).clip(CircleShape).background(Sun500))
+        Text(text, style = MaterialTheme.typography.labelLarge, color = Sun500)
     }
 }
 
