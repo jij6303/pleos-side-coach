@@ -45,4 +45,27 @@ class ReportGeneratorTest {
     fun `차선 변경이 없었으면 차선 변경 연습을 제안`() {
         assertEquals(NextTask.TRY_LANE_CHANGE, gen(lane = 0, signalled = 0, brakes = 0).nextTask)
     }
+
+    // ── #53 새 코칭 3종 ──
+
+    private fun genStats(stats: TripStats) = ReportGenerator.generate(metrics, stats)
+
+    @Test
+    fun `회전 과속과 기어 변경은 10점, 깜빡이 끄기 잊음은 5점씩 뺀다`() {
+        val r = genStats(TripStats(laneChanges = 2, signalledLaneChanges = 2, turnTooFast = 1, gearShiftsMoving = 1, blinkerLeftOn = 2))
+        assertEquals(70, r.score)
+        assertEquals(Grade.GOOD, r.grade)
+    }
+
+    @Test
+    fun `과제는 기어 변경 - 깜빡이 누락 - 회전 과속 - 급제동 - 깜빡이 끄기 순`() {
+        val all = TripStats(laneChanges = 2, signalledLaneChanges = 1, hardBrakes = 1, blinkerLeftOn = 1, turnTooFast = 1, gearShiftsMoving = 1)
+        assertEquals(NextTask.STOP_BEFORE_SHIFT, genStats(all).nextTask)
+        assertEquals(NextTask.BLINKER, genStats(all.copy(gearShiftsMoving = 0)).nextTask)
+        val noMiss = all.copy(gearShiftsMoving = 0, signalledLaneChanges = 2)
+        assertEquals(NextTask.SLOW_TURN, genStats(noMiss).nextTask)
+        assertEquals(NextTask.SMOOTH_BRAKE, genStats(noMiss.copy(turnTooFast = 0)).nextTask)
+        assertEquals(NextTask.BLINKER_OFF, genStats(noMiss.copy(turnTooFast = 0, hardBrakes = 0)).nextTask)
+        assertEquals(NextTask.KEEP_GOING, genStats(noMiss.copy(turnTooFast = 0, hardBrakes = 0, blinkerLeftOn = 0)).nextTask)
+    }
 }
