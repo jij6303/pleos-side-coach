@@ -138,6 +138,7 @@ class MainActivity : ComponentActivity() {
                             snapshot = snapshot,
                             lastMessage = lastMessage,
                             modifier = Modifier.padding(innerPadding),
+                            stats = stats,
                             parking = parking,
                             parkingMessage = parkingMessage,
                             onParkingNext = { ServiceLocator.parking.tapNext(ServiceLocator.appScope) },
