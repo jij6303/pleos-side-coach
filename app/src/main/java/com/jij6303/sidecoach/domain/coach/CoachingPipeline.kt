@@ -160,15 +160,17 @@ class CoachingPipeline(
         for (detector in detectors) {
             val event = detector.onSnapshot(s) ?: continue
             val praise = recorder.record(event)
-            toMessages(event, praise).forEach {
-                produced += it
-                arbiter.submit(it)
-            }
+            toMessages(event, praise).forEach { produced += it }
         }
 
+        val ended = tripEvent is TripSession.Event.Ended
+        // 움직이는 중 P에 넣으면 같은 순간 주행이 끝난다. 이 경고는 중재자를 거치지 않고 성적표보다 먼저 바로 말한다
+        // (중재자에도 넣으면 다음 스냅샷에서 한 번 더 말해 성적표 음성을 밀어낸다, #61 실측).
+        val immediate = produced.firstOrNull { ended && it.type == CoachType.GEAR_SHIFT_MOVING }
+        produced.filter { it !== immediate }.forEach(arbiter::submit)
+
         if (tripEvent is TripSession.Event.Ended) {
-            // 움직이는 중 P에 넣으면 같은 순간 주행이 끝난다. 이 경고는 성적표보다 먼저 바로 말한다.
-            produced.firstOrNull { it.type == CoachType.GEAR_SHIFT_MOVING }?.let {
+            immediate?.let {
                 _lastMessage.value = it
                 _messages.tryEmit(it)
             }

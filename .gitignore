@@ -28,3 +28,6 @@ __pycache__/
 # 서명 키 (절대 커밋 금지)
 *.jks
 *.keystore
+
+# 시연 녹화 파일 (scripts/demo_scenario.py --record)
+demo_*.mp4

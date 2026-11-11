@@ -1,6 +1,7 @@
 package com.jij6303.sidecoach.voice
 
 import com.jij6303.sidecoach.domain.coach.CoachMessage
+import com.jij6303.sidecoach.domain.coach.CoachType
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.BufferOverflow
@@ -48,7 +49,8 @@ class VoiceCoach(
     internal suspend fun deliver(message: CoachMessage) {
         while (true) {
             val age = clock() - message.createdAtMs
-            if (age > ttlMs) {
+            // 성적표 요약은 시간이 지나도 의미가 같아 버리지 않는다 (기어 경고 뒤에 기다리는 경우, #61)
+            if (age > ttlMs && message.type != CoachType.REPORT) {
                 log("drop ${message.type} age=${age}ms (ttl)")
                 return
             }

@@ -101,6 +101,15 @@ class VoiceCoachTest {
     }
 
     @Test
+    fun `성적표 요약은 TTL이 지나도 말한다 (#61)`() = runTest {
+        val output = FakeOutput()
+        val focus = FakeFocus()
+        advanceTimeBy(5_000)
+        coach(output, focus).deliver(msg("성적표", at = 0, type = CoachType.REPORT))
+        assertEquals(listOf("성적표"), output.spoken)
+    }
+
+    @Test
     fun `이미 오래된 메시지는 포커스를 요청하지 않고 버린다`() = runTest {
         val output = FakeOutput()
         val focus = FakeFocus()

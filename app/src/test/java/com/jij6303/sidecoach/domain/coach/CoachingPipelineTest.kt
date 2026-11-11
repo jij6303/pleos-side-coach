@@ -136,5 +136,7 @@ class CoachingPipelineTest {
         p.process(DrivingSnapshot(timestampMs = 11_000, speedKmh = 30f, gear = GearPosition.PARK))
         assertNotNull(p.lastReport.value)
         assertEquals(CoachType.GEAR_SHIFT_MOVING, p.lastMessage.value?.type)
+        // 바로 말한 기어 경고를 중재자가 다음 스냅샷에서 또 말하면 안 된다 (#61 실측: 성적표 음성이 밀려남)
+        assertNull(p.process(DrivingSnapshot(timestampMs = 11_500, speedKmh = 0f, gear = GearPosition.PARK)))
     }
 }
