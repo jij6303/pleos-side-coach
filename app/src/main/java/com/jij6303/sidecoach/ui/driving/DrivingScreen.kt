@@ -99,45 +99,70 @@ fun DrivingScreen(
 
 // ───────────────────────── 코칭 카드 ─────────────────────────
 
-private fun toneOf(type: CoachType?, signal: SignalColors): Pair<SignalTone, String> =
+private data class CoachLook(val tone: SignalTone, val label: String, val mood: CoachMood)
+
+private fun lookOf(type: CoachType?, signal: SignalColors): CoachLook =
     when (type) {
-        CoachType.HARD_BRAKE -> signal.brake to "급제동"
-        CoachType.SPEEDING -> signal.brake to "과속 주의"
-        CoachType.BLINKER_OMISSION -> signal.turn to "깜빡이"
-        CoachType.PRAISE -> signal.praise to "칭찬"
-        CoachType.PREVIEW -> signal.neutral to "곧 만나요"
-        CoachType.REPORT -> signal.praise to "성적표"
-        CoachType.PARKING -> signal.neutral to "주차 코치"
-        CoachType.TIP -> signal.neutral to "도움말"
-        null -> signal.neutral to "코칭 중"
+        CoachType.HARD_BRAKE -> CoachLook(signal.brake, "급제동", CoachMood.STERN)
+        CoachType.SPEEDING -> CoachLook(signal.brake, "과속 주의", CoachMood.STERN)
+        CoachType.BLINKER_OMISSION -> CoachLook(signal.turn, "깜빡이", CoachMood.ALERT)
+        CoachType.PRAISE -> CoachLook(signal.praise, "칭찬", CoachMood.HAPPY)
+        CoachType.REPORT -> CoachLook(signal.praise, "성적표", CoachMood.HAPPY)
+        CoachType.PREVIEW -> CoachLook(signal.neutral, "곧 만나요", CoachMood.CALM)
+        CoachType.PARKING -> CoachLook(signal.neutral, "주차 코치", CoachMood.CALM)
+        CoachType.TIP -> CoachLook(signal.neutral, "도움말", CoachMood.CALM)
+        null -> CoachLook(signal.neutral, "코칭 중", CoachMood.CALM)
     }
 
-/** 코칭 문구 카드. 왼쪽 강조 띠로 유형을 먼저 알리고, 코칭이 없으면 차분한 면 색으로 물러난다. */
+/**
+ * 연수 강사 얼굴 + 말풍선. 얼굴 고리와 말풍선 색이 코칭 유형을 알리고, 표정이 같은 뜻을 한 번 더 전한다.
+ * 코칭이 없으면 미소 짓는 얼굴과 차분한 말풍선으로 물러난다.
+ */
 @Composable
 private fun CoachPanel(message: CoachMessage?, wide: Boolean, modifier: Modifier) {
-    val (tone, label) = toneOf(message?.type, SideCoachTheme.signal)
+    val look = lookOf(message?.type, SideCoachTheme.signal)
+    val tone = look.tone
     val idle = message == null
-    val container = if (idle) MaterialTheme.colorScheme.surface else tone.container
+    val bubble = if (idle) MaterialTheme.colorScheme.surfaceVariant else tone.container
     val ink = if (idle) MaterialTheme.colorScheme.onSurface else tone.onContainer
-    Surface(modifier = modifier, shape = PanelShape, color = container) {
-        Row(Modifier.fillMaxSize()) {
-            Box(Modifier.width(20.dp).fillMaxHeight().background(tone.accent))
-            Column(
-                modifier = Modifier.fillMaxSize().padding(start = 56.dp, end = 56.dp, bottom = 64.dp),
-                verticalArrangement = Arrangement.spacedBy(28.dp, Alignment.Bottom),
+    Surface(modifier = modifier, shape = PanelShape, color = MaterialTheme.colorScheme.surface) {
+        Row(
+            modifier = Modifier.fillMaxSize().padding(start = 48.dp, end = 48.dp, bottom = 56.dp),
+            verticalAlignment = Alignment.Bottom,
+        ) {
+            CoachFace(look.mood, ring = tone.accent, modifier = Modifier.size(if (wide) 440.dp else 240.dp))
+            // 말풍선 꼬리: 얼굴 쪽을 가리킨다
+            Canvas(
+                Modifier
+                    .padding(bottom = if (wide) 170.dp else 84.dp)
+                    .size(width = 32.dp, height = 48.dp),
             ) {
-                Chip(text = label, tone = tone)
+                val path = Path().apply {
+                    moveTo(size.width, 0f); lineTo(0f, size.height / 2); lineTo(size.width, size.height); close()
+                }
+                drawPath(path, bubble)
+            }
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(40.dp))
+                    .background(bubble)
+                    .padding(horizontal = 48.dp, vertical = 40.dp),
+                verticalArrangement = Arrangement.spacedBy(20.dp),
+            ) {
+                Chip(text = look.label, tone = tone)
                 Text(
                     text = message?.text ?: "안전 운전 중이에요",
-                    style = if (wide) MaterialTheme.typography.displayLarge else MaterialTheme.typography.displayMedium,
+                    style = if (wide) MaterialTheme.typography.displayMedium else MaterialTheme.typography.headlineLarge,
                     color = ink,
-                    maxLines = 3,
+                    maxLines = 4,
                     overflow = TextOverflow.Ellipsis,
                 )
                 if (idle) {
                     Text(
                         "코칭이 필요한 순간에 음성으로 알려드릴게요",
-                        style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Normal),
+                        style = (if (wide) MaterialTheme.typography.headlineMedium else MaterialTheme.typography.titleLarge)
+                            .copy(fontWeight = FontWeight.Normal),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
