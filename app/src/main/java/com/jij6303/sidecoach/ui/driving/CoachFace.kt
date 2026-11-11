@@ -45,7 +45,7 @@ private val Lip = Color(0xFFE0707A)
 private val Blush = Color(0xFFFF8F9B)
 
 /**
- * 여성 연수 강사 초상(큰 눈·긴 머리의 부드러운 캐릭터). 원형 배지 안에 머리·어깨까지 그리고,
+ * 여성 연수 강사 초상(풀뱅 앞머리·긴 생머리·통통한 볼·큰 눈의 밝은 캐릭터). 원형 배지 안에 머리·어깨까지 그리고,
  * 그라데이션 음영·하이라이트·바닥 그림자로 입체감을 낸다(2.5D).
  * 바깥 고리와 옷 색은 코칭 신호색([ring])이라 표정과 색이 같은 뜻을 전한다. 전부 Canvas로 그려 리소스가 필요 없다.
  */
@@ -126,23 +126,32 @@ private fun DrawScope.drawPortrait(c: Offset, R: Float, mood: CoachMood, ring: C
     // 얼굴: 동그랗고 부드럽게, 왼쪽 위에서 빛
     drawOval(
         Brush.radialGradient(listOf(SkinLight, Skin, SkinShade), center = p(-0.12f, -0.15f), radius = 0.9f * R),
-        p(-0.5f, -0.48f), sz(1.0f, 1.0f),
+        p(-0.53f, -0.46f), sz(1.06f, 0.98f),
     )
 
-    // 가운데 가르마 커튼 앞머리
-    for (s in listOf(-1f, 1f)) {
-        val bang = Path().apply {
-            val top = p(0f, -0.6f)
-            moveTo(top.x, top.y)
-            val c1 = p(s * 0.14f, -0.42f); val c2 = p(s * 0.44f, -0.36f); val e = p(s * 0.54f, 0.12f)
-            cubicTo(c1.x, c1.y, c2.x, c2.y, e.x, e.y)
-            val o = p(s * 0.68f, 0.12f); lineTo(o.x, o.y)
-            // 바깥 윤곽은 둥근 정수리로 올라간다
-            val k1 = p(s * 0.72f, -0.5f); val k2 = p(s * 0.42f, -0.8f); val crown = p(0f, -0.8f)
-            cubicTo(k1.x, k1.y, k2.x, k2.y, crown.x, crown.y)
-            close()
-        }
-        drawPath(bang, hairBrush)
+    // 풀뱅 앞머리: 눈썹 바로 위에서 일자로 떨어지고, 옆머리가 볼을 감싼다
+    val bang = Path().apply {
+        fun mv(o: Offset) = moveTo(o.x, o.y)
+        fun ln(o: Offset) = lineTo(o.x, o.y)
+        fun cu(a: Offset, b: Offset, e: Offset) = cubicTo(a.x, a.y, b.x, b.y, e.x, e.y)
+        mv(p(-0.5f, 0.2f))
+        // 왼쪽 옆머리 안쪽 선 → 앞머리 끝선(가운데가 살짝 내려온 일자)
+        cu(p(-0.5f, 0.0f), p(-0.48f, -0.14f), p(-0.42f, -0.15f))
+        cu(p(-0.2f, -0.12f), p(0.2f, -0.12f), p(0.42f, -0.15f))
+        cu(p(0.48f, -0.14f), p(0.5f, 0.0f), p(0.5f, 0.2f))
+        // 바깥 윤곽: 둥근 정수리
+        ln(p(0.66f, 0.2f))
+        cu(p(0.72f, -0.5f), p(0.42f, -0.8f), p(0f, -0.8f))
+        cu(p(-0.42f, -0.8f), p(-0.72f, -0.5f), p(-0.66f, 0.2f))
+        close()
+    }
+    drawPath(bang, hairBrush)
+    // 앞머리 결: 아래로 떨어지는 옅은 선 몇 가닥
+    for (x in listOf(-0.26f, -0.08f, 0.1f, 0.28f)) {
+        drawLine(
+            HairDark.copy(alpha = 0.35f), p(x - 0.02f, -0.38f), p(x, -0.16f),
+            strokeWidth = 0.012f * R, cap = StrokeCap.Round,
+        )
     }
     // 머리 윤기
     drawArc(
@@ -152,25 +161,25 @@ private fun DrawScope.drawPortrait(c: Offset, R: Float, mood: CoachMood, ring: C
     )
 
     // 볼 홍조
-    val blushAlpha = if (mood == CoachMood.HAPPY) 0.65f else 0.45f
+    val blushAlpha = if (mood == CoachMood.HAPPY) 0.75f else 0.6f
     for (s in listOf(-1f, 1f)) {
-        val bc = p(s * 0.29f, 0.27f)
+        val bc = p(s * 0.3f, 0.26f)
         drawOval(
-            Brush.radialGradient(listOf(Blush.copy(alpha = blushAlpha), Color.Transparent), center = bc, radius = 0.1f * R),
-            Offset(bc.x - 0.1f * R, bc.y - 0.06f * R), sz(0.2f, 0.12f),
+            Brush.radialGradient(listOf(Blush.copy(alpha = blushAlpha), Color.Transparent), center = bc, radius = 0.12f * R),
+            Offset(bc.x - 0.12f * R, bc.y - 0.07f * R), sz(0.24f, 0.14f),
         )
     }
 
     // 눈썹: 얇고 부드러운 호. 표정마다 높이·안쪽 기울기만 바꾼다
     val (browY, tilt) = when (mood) {
-        CoachMood.CALM -> -0.1f to 0f
-        CoachMood.HAPPY -> -0.12f to 0f
-        CoachMood.ALERT -> -0.17f to -0.02f
-        CoachMood.STERN -> -0.08f to 0.04f
+        CoachMood.CALM -> -0.08f to 0f
+        CoachMood.HAPPY -> -0.09f to 0f
+        CoachMood.ALERT -> -0.11f to -0.01f
+        CoachMood.STERN -> -0.06f to 0.035f
     }
     for (s in listOf(-1f, 1f)) {
         val inner = p(s * 0.1f, browY + tilt)
-        val mid = p(s * 0.2f, browY - 0.045f)
+        val mid = p(s * 0.2f, browY - 0.03f)
         val out = p(s * 0.3f, browY)
         drawPath(
             Path().apply { moveTo(inner.x, inner.y); quadraticTo(mid.x, mid.y, out.x, out.y) },
@@ -181,7 +190,7 @@ private fun DrawScope.drawPortrait(c: Offset, R: Float, mood: CoachMood, ring: C
     // 눈
     val lash = Stroke(width = 0.03f * R, cap = StrokeCap.Round)
     for (s in listOf(-1f, 1f)) {
-        val e = p(s * 0.2f, 0.1f)
+        val e = p(s * 0.21f, 0.09f)
         if (mood == CoachMood.HAPPY) {
             drawArc(
                 Ink, startAngle = 195f, sweepAngle = 150f, useCenter = false,
@@ -189,8 +198,8 @@ private fun DrawScope.drawPortrait(c: Offset, R: Float, mood: CoachMood, ring: C
             )
             continue
         }
-        val w = if (mood == CoachMood.ALERT) 0.14f else 0.12f
-        val h = if (mood == CoachMood.ALERT) 0.18f else 0.16f
+        val w = if (mood == CoachMood.ALERT) 0.15f else 0.135f
+        val h = if (mood == CoachMood.ALERT) 0.19f else 0.17f
         drawOval(
             Brush.verticalGradient(listOf(Ink, EyeBrown), startY = e.y - h / 2 * R, endY = e.y + h / 2 * R),
             Offset(e.x - w / 2 * R, e.y - h / 2 * R), sz(w, h),
@@ -218,9 +227,12 @@ private fun DrawScope.drawPortrait(c: Offset, R: Float, mood: CoachMood, ring: C
     when (mood) {
         CoachMood.CALM -> drawArc(
             Lip, startAngle = 25f, sweepAngle = 130f, useCenter = false,
-            topLeft = p(-0.07f, my - 0.05f), size = sz(0.14f, 0.08f), style = Stroke(width = 0.026f * R, cap = StrokeCap.Round),
+            topLeft = p(-0.1f, my - 0.07f), size = sz(0.2f, 0.11f), style = Stroke(width = 0.028f * R, cap = StrokeCap.Round),
         )
-        CoachMood.HAPPY -> drawArc(Lip, startAngle = 0f, sweepAngle = 180f, useCenter = true, topLeft = p(-0.08f, my - 0.05f), size = sz(0.16f, 0.13f))
+        CoachMood.HAPPY -> {
+            drawArc(Lip, startAngle = 0f, sweepAngle = 180f, useCenter = true, topLeft = p(-0.11f, my - 0.07f), size = sz(0.22f, 0.17f))
+            drawArc(Color.White, startAngle = 0f, sweepAngle = 180f, useCenter = true, topLeft = p(-0.085f, my - 0.055f), size = sz(0.17f, 0.05f))
+        }
         CoachMood.STERN -> drawLine(Lip, p(-0.055f, my), p(0.055f, my), strokeWidth = 0.026f * R, cap = StrokeCap.Round)
         CoachMood.ALERT -> drawOval(Lip, p(-0.035f, my - 0.03f), sz(0.07f, 0.08f))
     }
