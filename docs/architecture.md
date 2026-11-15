@@ -24,11 +24,11 @@ sidecoach/
 | `data/navi` | 내비 경로 구독 | `NaviEventSource`(인터페이스), `PleosNaviEventSource`(NaviHelper), `FakeRouteNaviEventSource`(시연 경로), `RoutingNaviEventSource`(둘 중 선택), `TbtRouteTracker`(구간 거리 → 남은 거리) |
 | `data/ux` | 주행 규제 구독 | `UxRestrictionSource`(인터페이스), `AaosUxRestrictionSource`, `FakeUxRestrictionSource` |
 | `state` | 신호를 판단하기 좋은 형태로 묶기 | `DrivingSnapshot`(한 시점의 차량 상태), `DrivingStateRepository`(신호 → 스냅샷 흐름), `UxModeController`(규제 + 기어 → 화면 모드), `lane/CurrentLaneTracker`(지금 차로 추적) |
-| `feature/coach` | 무엇을 언제 말할지 | `detect/*Detector`(코칭 판정), `situation/SituationPreviewEngine`(상황 예고), `CoachingArbiter`(우선순위·간격 중재), `CoachingPipeline`(전체 흐름), `VoiceCoach`(메시지 → 음성), `lane/LaneInput`(차로 입력), `ui/DrivingScreen` |
+| `feature/coach` | 무엇을 언제 말할지 | `detect/*Detector`(코칭 판정), `situation/SituationPreviewEngine`(상황 예고), `CoachingArbiter`(우선순위·간격 중재), `CoachingPipeline`(전체 흐름), `VoiceCoach`(메시지 → 음성), `lane/LaneInput`(차로 입력), `ui/DrivingScreen`. 음성 문구는 `CoachMessage.kt`의 `MessageCatalog`, 녹음 클립은 `res/raw/` |
 | `feature/parking` | 주차 절차 코치 | `ParkingProcedure`(단계 정의), `ParkingCoachEngine`(단계 진행 판정), `ParkingCoachController`, `ParkingSettings`, `ui/ParkingPanel` |
 | `feature/report` | 주행 기록과 성적표 | `trip/TripRecorder`·`TripSession`(주행 시작·종료, 통계), `ReportGenerator`(점수·과제), `session/SessionStore`(세션 저장·복원), `ui/ReportScreen` |
 | `feature/tips` | 차량 기능 도움말 | `CarTip`(도움말 목록), `CarTipSpeaker`, `ui/CarTipsScreen` |
-| `app` | 앱이 시작되는 곳 | `SideCoachApp`(Application), `MainActivity`(화면 전환), `CoachingService`(Foreground Service), `di/ServiceLocator`(객체 생성·연결), `gleo/`(Gleo 명령 처리), `dashboard/`(정차 화면) |
+| `app` | 앱이 시작되는 곳 | `SideCoachApp`(Application), `MainActivity`(화면 전환), `CoachingService`(Foreground Service), `di/ServiceLocator`(객체 생성·연결), `gleo/`(Gleo 명령 처리, 명령 이름은 `assets/schema.json`과 같아야 함), `dashboard/`(정차 화면) |
 | `voice` | 소리 내기 | `VoiceOutput`(인터페이스), `ClipVoiceOutput`(녹음 클립 우선), `AndroidTtsVoiceOutput`, `AudioFocusController` |
 | `ui` | 공통 화면 요소 | `theme/`(색·글꼴), `components/`(타일·칩) |
 
@@ -37,6 +37,7 @@ sidecoach/
 `feature`끼리의 연결은 두 가지다.
 - 모든 기능이 `feature/coach`의 `CoachMessage`로 말한다. 주차 안내, 성적표 요약, 도움말 답변도 같은 메시지 형식으로 음성 출력에 들어간다.
 - `CoachingPipeline`이 주행 기록(`feature/report`의 `TripRecorder`)을 함께 돌린다. 코칭 판정과 통계가 같은 스냅샷을 같은 순서로 봐야 하기 때문이다.
+
 ## 2. 데이터 흐름
 
 ```
@@ -73,13 +74,3 @@ sidecoach/
 - **음성 대기열은 최신 1개**: 오래된 메시지(4초 이상)는 버린다.
 - **화면 모드는 규제 + 기어로 결정**: 주행 중(코칭 카드만) / 정차 / 주차(전체 대시보드).
 - **세션 복원**: 코칭 중 5초마다 세션 상태를 저장하고, 프로세스가 다시 만들어지면 이어간다.
-
-## 4. 코드 밖의 리소스
-
-| 위치 | 내용 |
-|---|---|
-| `app/src/main/assets/schema.json` | Gleo 음성 명령 정의 (`app/gleo/GleoContract`와 이름이 같아야 함) |
-| `app/src/main/res/raw/` | 녹음 음성 클립 (문구는 `feature/coach/CoachMessage.kt`의 `MessageCatalog`) |
-| `app/src/main/AndroidManifest.xml` | 권한, Foreground Service, Gleo Intent 설정 |
-| `scripts/demo_scenario.py` | Virtual Console을 조작해 시연 주행을 자동 재생 |
-| `scripts/generate_voice_clips.ps1` | 녹음본이 없는 문구의 개발용 음성 클립 생성 |
