@@ -15,7 +15,7 @@ interface AudioFocus {
     fun abandon()
 }
 
-/** 포커스를 잡지 않는 구현. TTS SDK가 직접 포커스를 잡는 것으로 확인되면 이걸 쓴다 (dev-architecture 6.2 ❓). */
+/** 포커스를 잡지 않는 구현. TTS SDK가 직접 포커스를 잡는 것으로 확인되면 이걸 쓴다. */
 object NoAudioFocus : AudioFocus {
     override fun request(onLoss: () -> Unit): Boolean = true
     override fun abandon() = Unit
@@ -28,7 +28,7 @@ val VoiceAudioAttributes: AudioAttributes = AudioAttributes.Builder()
     .build()
 
 /**
- * dev-architecture 6.1: NAVIGATION 컨텍스트, GAIN_TRANSIENT_MAY_DUCK.
+ * NAVIGATION 컨텍스트, GAIN_TRANSIENT_MAY_DUCK.
  * 어떤 손실(LOSS / LOSS_TRANSIENT / LOSS_TRANSIENT_CAN_DUCK)이든 즉시 멈추고 다시 재생하지 않는다.
  * 포커스 상태 변화는 가이드 필수 로그 항목(context, gain, 결과)으로 남긴다.
  */

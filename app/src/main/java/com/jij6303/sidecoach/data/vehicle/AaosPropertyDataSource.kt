@@ -19,7 +19,7 @@ import kotlinx.coroutines.flow.callbackFlow
  *
  * Pleos 정책상 표준 데이터는 AAOS API 사용을 권장한다.
  *
- * 에뮬레이터 실측(2026-11-09, dev-architecture 11.3 확인 목록 5-1):
+ * 에뮬레이터 실측(2026-11-09):
  * - GEAR_SELECTION, PARKING_BRAKE_ON: CAR_POWERTRAIN(normal)으로 수신됨
  * - PERF_VEHICLE_SPEED: CAR_SPEED(dangerous, 위치 그룹) 런타임 승인 후 수신됨
  * - HAZARD_LIGHTS_STATE: CAR_EXTERIOR_LIGHTS가 signature|privileged라 서드파티 앱은 수신 불가.

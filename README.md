@@ -25,7 +25,7 @@
 ./gradlew testDebugUnitTest      # 단위 테스트
 ```
 
-에뮬레이터 준비, 차량 신호 조작, 시연 스크립트는 [docs/test-guide.md](docs/test-guide.md)에 있다.
+에뮬레이터 준비, 차량 신호 조작, 시연 방법은 [docs/test-guide.md](docs/test-guide.md)에 있다.
 
 ## 어디서 무엇을 보나
 
@@ -39,8 +39,3 @@
 | 녹음 음성 클립 | `app/src/main/res/raw/` |
 | Gleo 음성 명령 정의 | `app/src/main/assets/schema.json` |
 | 권한, 서비스, Gleo 명령 수신 설정 | `app/src/main/AndroidManifest.xml` |
-| 시연 자동 재생, 음성 클립 생성 | `scripts/` |
-| GitHub 작업 봇 (이슈·브랜치·PR) | `github/` |
-| Claude 작업 규칙과 참고 자료 | `CLAUDE.md`, `.claude/` |
-
-`docs/`는 사람이 읽는 문서, `.claude/`는 Claude가 작업할 때 읽는 문서(실측 기록, API 명세, 작업 일지)다.

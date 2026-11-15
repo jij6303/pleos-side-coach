@@ -5,7 +5,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 
 /**
  * 주행 규제 상태 (AAOS CarUxRestrictions를 감싼 순수 Kotlin 모델).
- * [activeRestrictions]는 CarUxRestrictions 비트 플래그 (dev-architecture 5.1).
+ * [activeRestrictions]는 CarUxRestrictions 비트 플래그.
  */
 data class UxState(
     val requiresDistractionOptimization: Boolean,

@@ -36,20 +36,7 @@
 - **실제 내비 경로**: 에뮬레이터 내비에서 목적지를 정해 경로 안내를 시작하면 실제 회전 목록으로 차로 안내가 나온다. 에뮬레이터 내비는 위치가 움직이지 않으므로, 남은 거리는 콘솔 차속으로 계산한다.
 - P에 넣었다가 60초 안에 다시 출발하면 같은 주행으로 이어가므로 이미 한 예고는 다시 나오지 않는다. 처음부터 다시 들으려면 P에서 60초 넘게 기다린다.
 
-## 4. 시연 자동 재생
-
-`scripts/demo_scenario.py`가 Virtual Console을 조작해 약 3분짜리 시연 주행을 재생한다. 출발 → 상황 예고 → 깜빡이 켠 차선 변경(칭찬) → 깜빡이 누락 → 깜빡이 끄기 잊음 → 회전 과속 → 급제동 → 움직이는 중 P → 성적표 순서다.
-
-```bash
-python scripts/demo_scenario.py            # 재생
-python scripts/demo_scenario.py --list     # 단계 목록만 보기
-python scripts/demo_scenario.py --record   # 재생하면서 화면 녹화 (소리 없음)
-```
-
-- 실행 전에 브라우저의 콘솔 탭을 닫는다. 열려 있으면 페이지가 자기 값으로 덮어쓴다.
-- `adb screenrecord`는 소리를 녹음하지 못한다. 음성까지 담으려면 PC에서 에뮬레이터 창을 녹화한다.
-
-## 5. Gleo 음성 명령 시뮬레이션
+## 4. Gleo 음성 명령 시뮬레이션
 
 에뮬레이터에서는 Gleo 실제 음성 호출이 동작하지 않으므로 adb로 같은 Intent를 보낸다.
 
@@ -64,7 +51,7 @@ adb shell am start -a SET_CURRENT_LANE -n com.jij6303.sidecoach/.app.MainActivit
 adb shell am start -a ASK_CAR_TIP -n com.jij6303.sidecoach/.app.MainActivity --es ACTION_PARAM '{"topic":"WINDSHIELD_FOG"}'
 ```
 
-## 6. 로그와 상태 확인
+## 5. 로그와 상태 확인
 
 ```bash
 adb logcat -s Coach Navi Parking Gleo    # 코칭 메시지, 내비 이벤트, 주차 코치, Gleo 명령 로그
@@ -73,7 +60,7 @@ adb exec-out screencap -p > screen.png   # 화면 캡처
 adb shell am crash --user 10 com.jij6303.sidecoach   # 비정상 종료 → 세션 복원 확인 (앱은 사용자 10으로 실행됨)
 ```
 
-## 7. 주요 확인 항목
+## 6. 주요 확인 항목
 
 | 시나리오 | 조작 | 기대 결과 |
 |---|---|---|

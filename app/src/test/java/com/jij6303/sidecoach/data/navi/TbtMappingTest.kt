@@ -48,17 +48,6 @@ class TbtMappingTest {
     }
 
     @Test
-    fun `음성 클립 스크립트에 차로·연속 회전 문구가 모두 있다`() {
-        // 단위 테스트 작업 디렉터리는 app 모듈
-        val script = java.io.File("../scripts/generate_voice_clips.ps1").readText()
-        val navi = SituationType.entries.filter { it.name.startsWith("LANE_") || it.name.startsWith("CHAIN_") }
-            .map { MessageCatalog.preview(it) }
-        (navi + MessageCatalog.laneAwarePhrases() + (1..4).map(MessageCatalog::laneSet)).forEach {
-            assertTrue(it, script.contains("'$it'"))
-        }
-    }
-
-    @Test
     fun `차로 안내 문구는 15어절 이내`() {
         SituationType.entries.filter { it.name.startsWith("LANE_") || it.name.startsWith("CHAIN_") }.forEach {
             val words = MessageCatalog.preview(it).split(" ").size

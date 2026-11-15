@@ -5,7 +5,7 @@ import android.content.Intent
 import android.util.Log
 
 /**
- * 응답 브로드캐스트 (dev-architecture 7.3).
+ * 응답 브로드캐스트.
  * 수신 패키지(setPackage) 지정 여부는 문서에 없어 지정하지 않는다 (확인 필요).
  */
 object GleoCallbackSender {

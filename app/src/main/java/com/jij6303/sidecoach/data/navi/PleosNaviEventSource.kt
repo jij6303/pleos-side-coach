@@ -15,7 +15,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.channelFlow
 
 /**
- * 차량 내비(NaviHelper) 경로 이벤트 (#65). API·필드는 #63 실측(dev-architecture 0.1).
+ * 차량 내비(NaviHelper) 경로 이벤트 (#65). API·필드는 #63 실측.
  *
  * - 리스너는 권한 없이 받는다. 경로 안내가 시작되면 `onTBTInfo`로 전체 회전 목록이 온다.
  * - 경로 안내 중에 늦게 등록하면 목록이 다시 오지 않아 `getTBTInfo()`로 조회한다. 이 호출은

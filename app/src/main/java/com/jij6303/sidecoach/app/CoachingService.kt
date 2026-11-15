@@ -17,7 +17,7 @@ import com.jij6303.sidecoach.R
 import com.jij6303.sidecoach.app.di.ServiceLocator
 
 /**
- * 코칭 세션 수명을 맡는 Foreground Service (dev-architecture 9장).
+ * 코칭 세션 수명을 맡는 Foreground Service.
  * 앱 화면을 숨겨도(최상단 Back → moveTaskToBack) 신호 구독·판정·음성 코칭이 계속된다.
  */
 class CoachingService : Service() {

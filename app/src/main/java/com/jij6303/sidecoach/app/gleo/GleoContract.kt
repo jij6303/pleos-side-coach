@@ -1,6 +1,6 @@
 package com.jij6303.sidecoach.app.gleo
 
-/** Gleo Interface 상수 (dev-architecture 7.2, assets/schema.json과 이름이 같아야 함). */
+/** Gleo Interface 상수 (assets/schema.json과 이름이 같아야 함). */
 object GleoContract {
     const val EXTRA_PARAM = "ACTION_PARAM"
     const val ACTION_RESPONSE = "ai.pleos.playground.intent.action.APP_ACTION_RESPONSE"

@@ -375,7 +375,7 @@ fun DashboardHeader(
 ) {
     val signal = SideCoachTheme.signal
     ScreenHeader(title = "초보운전탈출", subtitle = "옆자리 연수 코치", modifier = modifier) {
-        // 정차(P단)일 때만 버튼을 보인다 (주행 중 진입 차단, dev-architecture 5.2)
+        // 정차(P단)일 때만 버튼을 보인다 (주행 중 진입 차단)
         if (onOpenTips != null) {
             Button(onClick = onOpenTips, modifier = Modifier.height(56.dp)) {
                 Text("차량 기능 도움말", style = MaterialTheme.typography.titleMedium)

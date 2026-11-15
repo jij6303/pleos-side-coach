@@ -1,6 +1,5 @@
-# claude-setup 툴킷
+# 로컬 비밀 설정 (커밋 금지)
 /github_bot.json
-__pycache__/
 
 # Android / Gradle
 *.iml
@@ -14,20 +13,9 @@ __pycache__/
 .kotlin/
 
 # Android Studio
-/.idea/caches/
-/.idea/libraries/
-/.idea/modules.xml
-/.idea/workspace.xml
-/.idea/navEditor.xml
-/.idea/assetWizardSettings.xml
-/.idea/deploymentTargetDropDown.xml
-/.idea/deploymentTargetSelector.xml
-/.idea/deviceManager.xml
+/.idea/
 .DS_Store
 
 # 서명 키 (절대 커밋 금지)
 *.jks
 *.keystore
-
-# 시연 녹화 파일 (scripts/demo_scenario.py --record)
-demo_*.mp4

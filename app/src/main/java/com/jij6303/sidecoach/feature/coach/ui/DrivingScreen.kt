@@ -54,7 +54,7 @@ private const val MESSAGE_VISIBLE_MS = 10_000L
 private val PanelShape = RoundedCornerShape(32.dp)
 
 /**
- * 주행 규제 중 화면 (dev-architecture 5.2 DRIVING_VOICE).
+ * 주행 규제 중 화면 (DRIVING_VOICE).
  * 큰 글자 코칭 카드 + 아래 상태 띠(깜빡이·브레이크·이번 주행 기록). 애니메이션·스크롤 없음. 코칭은 음성이 주이고 화면은 보조.
  *
  * 차속·기어는 Pleos 고정 주행 영역에 이미 크게 나오므로 여기서 다시 그리지 않는다.
