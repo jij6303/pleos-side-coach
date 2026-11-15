@@ -69,6 +69,10 @@
                 <action android:name="ASK_CAR_TIP" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
+            <intent-filter>
+                <action android:name="SET_CURRENT_LANE" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
         </activity>
 
         <service

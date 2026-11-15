@@ -59,7 +59,10 @@ class GleoTest {
         currentMode = { mode },
         speakTip = { spokenTip = it },
         openTip = { openedTip = it },
+        setLane = { lane -> (lane in 1..4).also { if (it) setLane = lane } },
     )
+
+    private var setLane: Int? = null
 
     @Test
     fun `T1 코칭 시작은 서비스를 시작하고 success`() = runTest {
@@ -104,5 +107,25 @@ class GleoTest {
         assertEquals(GleoResponse.Status.FAIL, handler.handle("ASK_CAR_TIP", mapOf("topic" to "WIPER"))!!.status)
         assertEquals(GleoResponse.Status.FAIL, handler.handle("ASK_CAR_TIP", emptyMap())!!.status)
         assertNull(spokenTip)
+    }
+
+    @Test
+    fun `차로 입력은 앱이 기억·확인하고 silent로 응답`() = runTest {
+        val r = handler.handle("SET_CURRENT_LANE", mapOf("laneNumber" to "2"))!!
+        assertEquals(2, setLane)
+        assertEquals(GleoResponse.Status.SUCCESS, r.status)
+        assertEquals(GleoResponse.Mode.SILENT, r.mode)
+        assertEquals(2, JSONArray(r.data).getJSONObject(0).getInt("laneNumber"))
+        // 숫자가 소수 형태로 와도 받는다
+        handler.handle("SET_CURRENT_LANE", mapOf("laneNumber" to "3.0"))
+        assertEquals(3, setLane)
+    }
+
+    @Test
+    fun `차로 번호가 없거나 범위 밖이면 fail`() = runTest {
+        listOf(emptyMap(), mapOf("laneNumber" to "5"), mapOf("laneNumber" to "two"), mapOf("laneNumber" to "1.5")).forEach {
+            assertEquals(it.toString(), GleoResponse.Status.FAIL, handler.handle("SET_CURRENT_LANE", it)!!.status)
+        }
+        assertNull(setLane)
     }
 }

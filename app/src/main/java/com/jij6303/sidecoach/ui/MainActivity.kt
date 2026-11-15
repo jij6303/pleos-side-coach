@@ -59,6 +59,7 @@ class MainActivity : ComponentActivity() {
             },
             speakTip = ServiceLocator.tipSpeaker::speak,
             openTip = { openTip.value = it },
+            setLane = ServiceLocator.laneInput::set,
         )
     }
 
@@ -119,6 +120,7 @@ class MainActivity : ComponentActivity() {
                 val uiMode by ServiceLocator.uiMode.collectAsStateWithLifecycle()
                 val report by pipeline.lastReport.collectAsStateWithLifecycle()
                 val demoRoute by ServiceLocator.naviEventSource.isDemo.collectAsStateWithLifecycle()
+                val lane by pipeline.lane.lane.collectAsStateWithLifecycle()
                 // 성적표는 정차(P단, 규제 없음)일 때만 보여준다 (dev-architecture 5.2)
                 val shownReport = report?.takeIf { uiMode == UiMode.PARKED_FULL }
                 closeReport.isEnabled = shownReport != null
@@ -181,6 +183,11 @@ class MainActivity : ComponentActivity() {
                                 }
                             } else {
                                 null
+                            },
+                            lane = lane,
+                            // 정차 화면(P·정차 중)에서만 보이므로 바로 받는다
+                            onLaneChange = { value ->
+                                if (value == null) ServiceLocator.laneInput.clear() else ServiceLocator.laneInput.set(value)
                             },
                         )
                     }

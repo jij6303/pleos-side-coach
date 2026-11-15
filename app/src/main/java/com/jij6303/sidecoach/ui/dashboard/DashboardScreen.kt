@@ -46,6 +46,8 @@ fun DashboardScreen(
     onOpenTips: (() -> Unit)? = null,
     parkingType: ParkingType? = ParkingType.REVERSE,
     onParkingTypeChange: ((ParkingType?) -> Unit)? = null,
+    lane: Int? = null,
+    onLaneChange: ((Int?) -> Unit)? = null,
 ) {
     BoxWithConstraints(
         modifier = modifier
@@ -72,6 +74,7 @@ fun DashboardScreen(
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Gap)) {
                         SectionTitle("차량 상태")
                         VehicleGrid(snapshot)
+                        LaneTile(lane, onLaneChange, Modifier.fillMaxWidth())
                     }
                 }
             } else {
@@ -81,6 +84,7 @@ fun DashboardScreen(
                 SectionTitle("이번 주행")
                 StatsGrid(stats)
                 ParkingCoachTile(parkingType, onParkingTypeChange, Modifier.fillMaxWidth())
+                LaneTile(lane, onLaneChange, Modifier.fillMaxWidth())
             }
         }
     }

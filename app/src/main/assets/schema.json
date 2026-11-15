@@ -34,6 +34,25 @@
           "required": ["topic"]
         }
       }
+    },
+    {
+      "type": "function",
+      "function": {
+        "component": "activity",
+        "name": "SET_CURRENT_LANE",
+        "description": "Remembers which lane the driver is in now, so the coach can tell exactly which lane to move to before a turn. Lanes are counted from the leftmost lane as lane 1.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "laneNumber": {
+              "type": "integer",
+              "description": "The lane the driver is in now, counting from the leftmost lane as 1.",
+              "enum": [1, 2, 3, 4]
+            }
+          },
+          "required": ["laneNumber"]
+        }
+      }
     }
   ]
 }

@@ -4,6 +4,7 @@ import com.jij6303.sidecoach.data.navi.NaviEvent
 import com.jij6303.sidecoach.domain.DrivingSnapshot
 import com.jij6303.sidecoach.domain.detect.DetectionEvent
 import com.jij6303.sidecoach.domain.detect.Detector
+import com.jij6303.sidecoach.domain.lane.CurrentLaneTracker
 import com.jij6303.sidecoach.domain.report.ReportGenerator
 import com.jij6303.sidecoach.domain.report.TripReport
 import com.jij6303.sidecoach.domain.session.SessionState
@@ -45,6 +46,8 @@ class CoachingPipeline(
     private val tripSession: TripSession = TripSession(),
     private val naviEvents: Flow<NaviEvent> = emptyFlow(),
     private val previewEngine: SituationPreviewEngine = SituationPreviewEngine(),
+    /** 운전자가 알려준 차로(#69). 차선 변경으로 추적하고 상황 예고 문구에 쓴다. */
+    val lane: CurrentLaneTracker = CurrentLaneTracker(),
     private val stateSink: (SessionState) -> Unit = {},
     private val saveIntervalMs: Long = 5_000,
 ) {
@@ -101,6 +104,7 @@ class CoachingPipeline(
         detectors.forEach { it.reset() }
         tripSession.reset()
         previewEngine.reset()
+        lane.clear()
     }
 
     fun dismissReport() {
@@ -156,9 +160,11 @@ class CoachingPipeline(
             else -> Unit
         }
 
+        lane.onSnapshot(s)
         val produced = mutableListOf<CoachMessage>()
         for (detector in detectors) {
             val event = detector.onSnapshot(s) ?: continue
+            if (event is DetectionEvent.LaneChange) lane.onLaneChange(event.direction)
             val praise = recorder.record(event)
             toMessages(event, praise).forEach { produced += it }
         }
@@ -187,7 +193,7 @@ class CoachingPipeline(
     /** 내비 이벤트 하나를 처리하고 이번에 말하기로 정한 메시지를 돌려준다. */
     internal fun processNavi(e: NaviEvent): CoachMessage? = synchronized(lock) {
         lastInputMs = e.timestampMs
-        previewEngine.onEvent(e)?.let(arbiter::submit)
+        previewEngine.onEvent(e, lane.current(e.timestampMs))?.let(arbiter::submit)
         return speakNext(e.timestampMs)
     }
 

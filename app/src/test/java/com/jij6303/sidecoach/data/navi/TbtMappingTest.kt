@@ -40,6 +40,26 @@ class TbtMappingTest {
     }
 
     @Test
+    fun `지금 차로를 아는 경우 문구`() {
+        assertEquals("곧 직진이에요. 1차로는 좌회전 전용일 수 있으니 2차로로 옮기세요.", MessageCatalog.preview(SituationType.LANE_STRAIGHT, 1))
+        assertEquals("곧 유턴이에요. 지금 1차로 그대로 가요.", MessageCatalog.preview(SituationType.LANE_UTURN, 1))
+        // 우회전은 전체 차로 수를 몰라 일반 안내, 5차로 이상은 문구가 없어 일반 안내
+        assertEquals(MessageCatalog.preview(SituationType.LANE_RIGHT_TURN), MessageCatalog.preview(SituationType.LANE_RIGHT_TURN, 1))
+        assertEquals(MessageCatalog.preview(SituationType.LANE_LEFT_TURN), MessageCatalog.preview(SituationType.LANE_LEFT_TURN, 5))
+        assertEquals(11, MessageCatalog.laneAwarePhrases().size)
+        MessageCatalog.laneAwarePhrases().forEach { assertTrue(it, it.split(" ").size <= 15) }
+    }
+
+    @Test
+    fun `음성 클립 스크립트에 차로 문구가 모두 있다`() {
+        // 단위 테스트 작업 디렉터리는 app 모듈
+        val script = java.io.File("../scripts/generate_voice_clips.ps1").readText()
+        (MessageCatalog.laneAwarePhrases() + (1..4).map(MessageCatalog::laneSet)).forEach {
+            assertTrue(it, script.contains("'$it'"))
+        }
+    }
+
+    @Test
     fun `차로 안내 문구는 15어절 이내`() {
         SituationType.entries.filter { it.name.startsWith("LANE_") || it.name.startsWith("CHAIN_") }.forEach {
             val words = MessageCatalog.preview(it).split(" ").size

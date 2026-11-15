@@ -33,6 +33,7 @@ import com.jij6303.sidecoach.domain.detect.BlinkerLeftOnDetector
 import com.jij6303.sidecoach.domain.detect.GearShiftWhileMovingDetector
 import com.jij6303.sidecoach.domain.detect.TurnSpeedDetector
 import com.jij6303.sidecoach.domain.detect.HardBrakeDetector
+import com.jij6303.sidecoach.domain.lane.LaneInput
 import com.jij6303.sidecoach.domain.trip.TripRecorder
 import com.jij6303.sidecoach.ui.UiMode
 import com.jij6303.sidecoach.ui.UxModeController
@@ -96,6 +97,10 @@ object ServiceLocator {
     val fakeUx: FakeUxRestrictionSource by lazy { FakeUxRestrictionSource() }
 
     lateinit var tipSpeaker: CarTipSpeaker
+        private set
+
+    /** 운전자가 알려준 차로 입력 (#69). Gleo·대시보드가 쓴다. */
+    lateinit var laneInput: LaneInput
         private set
     lateinit var parking: ParkingCoachController
         private set
@@ -169,6 +174,7 @@ object ServiceLocator {
             // 프로세스가 다시 만들어져도 이어가도록 주기적으로 저장 (dev-architecture 9장, #31)
             stateSink = { sessionStore.save(it.copy(route = fakeRoute.exportState())) },
         )
+        laneInput = LaneInput(coachingPipeline.lane, clock)
         // 중재자가 고른 메시지를 로그로도 남긴다 (logcat 태그: Coach)
         appScope.launch {
             coachingPipeline.messages.collect { Log.i("Coach", "${it.type}: ${it.text}") }
@@ -198,6 +204,22 @@ object ServiceLocator {
                 MessageCatalog.preview(SituationType.CHAIN_UTURN) to R.raw.chain_uturn,
                 MessageCatalog.preview(SituationType.CHAIN_KEEP_LEFT) to R.raw.chain_keep_left,
                 MessageCatalog.preview(SituationType.CHAIN_KEEP_RIGHT) to R.raw.chain_keep_right,
+                // 지금 차로를 아는 경우 (#69)
+                MessageCatalog.preview(SituationType.LANE_LEFT_TURN, 1) to R.raw.lane_left_l1,
+                MessageCatalog.preview(SituationType.LANE_LEFT_TURN, 2) to R.raw.lane_left_l2,
+                MessageCatalog.preview(SituationType.LANE_LEFT_TURN, 3) to R.raw.lane_left_l3,
+                MessageCatalog.preview(SituationType.LANE_LEFT_TURN, 4) to R.raw.lane_left_l4,
+                MessageCatalog.preview(SituationType.LANE_UTURN, 1) to R.raw.lane_uturn_l1,
+                MessageCatalog.preview(SituationType.LANE_UTURN, 2) to R.raw.lane_uturn_l2,
+                MessageCatalog.preview(SituationType.LANE_UTURN, 3) to R.raw.lane_uturn_l3,
+                MessageCatalog.preview(SituationType.LANE_UTURN, 4) to R.raw.lane_uturn_l4,
+                MessageCatalog.preview(SituationType.LANE_STRAIGHT, 1) to R.raw.lane_straight_l1,
+                MessageCatalog.preview(SituationType.LANE_STRAIGHT, 2) to R.raw.lane_straight_l2,
+                MessageCatalog.preview(SituationType.LANE_KEEP_LEFT, 1) to R.raw.lane_keep_left_l1,
+                MessageCatalog.laneSet(1) to R.raw.lane_set_1,
+                MessageCatalog.laneSet(2) to R.raw.lane_set_2,
+                MessageCatalog.laneSet(3) to R.raw.lane_set_3,
+                MessageCatalog.laneSet(4) to R.raw.lane_set_4,
                 CarTip.WINDSHIELD_FOG.spoken to R.raw.tip_windshield_fog,
                 CarTip.REAR_WINDOW_FOG.spoken to R.raw.tip_rear_window_fog,
                 CarTip.RECIRCULATION.spoken to R.raw.tip_recirculation,
@@ -247,7 +269,7 @@ object ServiceLocator {
         drivingStateRepository.start(appScope)
         coachingPipeline.start(appScope)
         parking.start(appScope)
-        voiceCoach.start(appScope, merge(coachingPipeline.messages, parking.messages, tipSpeaker.messages))
+        voiceCoach.start(appScope, merge(coachingPipeline.messages, parking.messages, tipSpeaker.messages, laneInput.messages))
     }
 
     /**

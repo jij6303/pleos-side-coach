@@ -390,6 +390,8 @@ candidate(type, d, key):
 - **차로 사전 안내(#65)**: TBT `TurnType` → `LANE_LEFT_TURN`·`LANE_RIGHT_TURN`·`LANE_UTURN`·`LANE_KEEP_LEFT/RIGHT`·`LANE_STRAIGHT`, 회전교차로 진입은 `ROUNDABOUT`, 주의 지점 `SCHOOL_ZONE`은 `SCHOOL_ZONE`. 차로 안내는 차선을 옮길 시간이 필요해 **500~200m**(💭)에서 예고. SDK에 차로 정보·회전 지점 좌표가 없어 사거리별 차로 구성 DB는 TBT 지점과 맞출 수 없음 → 회전 종류 기반 일반 안내("왼쪽 끝 차로로 옮겨두세요"). 에뮬레이터 실측: 콘솔 93km/h 주행으로 좌회전 2회·우회전 1회가 예상 시각에 발화.
   - ~~한계: 앞 회전 직후 200m 안쪽 회전을 안내하지 못함~~ → **연속 회전(#67)**: 다음 회전 A 뒤 300m(💭) 안에 회전 B(좌·우·유턴·분기)가 있으면, **A까지 150~30m**(💭)에서 "그다음 바로 우회전이에요. 지나자마자 오른쪽 차로로 가세요."를 한 번 더 말한다. 에뮬레이터 실측: 좌회전(1970m) 안내 약 13초 뒤 발화.
   - 지점 키는 `tbt-<목록 받은 시각>-<순번>`. 순번만 쓰면 프로세스 재시작 후 세션 복원으로 남은 "예고한 지점"과 겹쳐 안내가 빠졌다(#67 실측).
+- **운전자가 알려준 차로(#69)**: Gleo `SET_CURRENT_LANE(laneNumber 1~4, 1 = 가장 왼쪽)` 또는 대시보드(정차 화면) 1~4·모름 버튼으로 입력 → "2차로로 기억할게요." 음성 확인. `CurrentLaneTracker`가 `LaneChange` 감지로 왼쪽 −1, 오른쪽 +1 추적. **모름으로 되돌리기**: 조향 90° 이상(교차로 회전), 1차로에서 왼쪽 변경, 입력 후 5분(💭), 코칭 종료. 차로를 알면 좌회전·유턴("지금 2차로니까 깜빡이 켜고 1차로로 옮기세요" / "지금 1차로 그대로 가요"), 직진("1차로는 좌회전 전용일 수 있으니 2차로로 옮기세요"), 왼쪽 길(1차로)을 단정해서 안내. 우회전·오른쪽 길은 전체 차로 수를 몰라 일반 안내 유지.
+  - 실측: Gleo로 앱이 막 켜지면 음성 출력이 구독하기 전에 확인 음성이 나가 사라졌다 → `LaneInput.messages`에 replay 1(오래된 것은 VoiceCoach TTL 4초가 버림). `CarTipSpeaker`(ASK_CAR_TIP)도 같은 구조라 앱이 꺼진 상태에서 호출되면 같은 문제가 있을 수 있음(❓ 미확인)
 - `isNearTurnOrCurve(r)`: 최근 TBT 안내 지점까지의 거리가 r 이하이면 true. BlinkerOmission 억제에 쓴다.
 - **"지금 어떻게 해?"(STT나 Gleo로 들어온 질문)**: 가장 최근 candidate나 현재 진행 중인 상황을 골라 설명 문구를 즉시 낭독한다.
 
@@ -610,6 +612,8 @@ val req = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_D
 - 샘플에 있는 `invokeWord` 필드는 명세에 없어서 넣지 않았다. 필요한지 확인해야 한다.
 - `version`은 App Market에 등록한 버전과 맞춰야 한다.
 - `parameters.properties`가 빈 객체여도 검토를 통과하는지 확인해야 한다.
+
+> **구현(#69) 기준 변경**: 세 번째 activity 액션 `SET_CURRENT_LANE`(`laneNumber` integer, enum 1~4, 필수)을 추가했다. 앱이 직접 "N차로로 기억할게요"라고 말하고 응답은 `mode: silent`. 범위 밖·누락이면 `fail`. 액션은 가이드 상한 3개를 채웠다.
 
 > **구현(#35) 기준 변경**: `RUN_VEHICLE_TUTORIAL` 액션을 삭제했다. 현재 schema는 activity 액션 2개(`START_DRIVING_COACH`, `ASK_CAR_TIP`). 아래 7.1~7.2와 8장 예시의 `RUN_VEHICLE_TUTORIAL`은 과거 설계다.
 >
