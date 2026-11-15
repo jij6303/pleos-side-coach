@@ -1,7 +1,6 @@
 package com.jij6303.sidecoach.data.navi
 
-import com.jij6303.sidecoach.domain.DrivingSnapshot
-import com.jij6303.sidecoach.domain.situation.SituationType
+import com.jij6303.sidecoach.state.DrivingSnapshot
 
 /**
  * 내비 TBT 목록 → 회전 지점까지 남은 거리 (#65).

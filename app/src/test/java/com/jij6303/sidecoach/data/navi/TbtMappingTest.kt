@@ -1,7 +1,6 @@
 package com.jij6303.sidecoach.data.navi
 
-import com.jij6303.sidecoach.domain.coach.MessageCatalog
-import com.jij6303.sidecoach.domain.situation.SituationType
+import com.jij6303.sidecoach.feature.coach.MessageCatalog
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue

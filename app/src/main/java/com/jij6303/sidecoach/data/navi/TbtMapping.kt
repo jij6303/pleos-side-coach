@@ -1,6 +1,5 @@
 package com.jij6303.sidecoach.data.navi
 
-import com.jij6303.sidecoach.domain.situation.SituationType
 
 /**
  * NaviHelper 상수 이름 → 앱 상황 유형 (#65). SDK enum의 `name`을 받아 SDK 없이 테스트할 수 있게 한다.
