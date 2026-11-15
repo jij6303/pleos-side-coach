@@ -35,6 +35,7 @@
 | 코드 구조와 각 패키지의 책임 | [docs/architecture.md](docs/architecture.md) |
 | 에뮬레이터로 테스트·시연하는 법 | [docs/test-guide.md](docs/test-guide.md) |
 | 앱 코드 | `app/src/main/java/com/jij6303/sidecoach/` |
+| 패키지 구조 | `data`(SDK 연결) → `state`(상태 묶기) → `feature`(코칭·주차·성적표·도움말) → `voice`(음성 출력), 시작과 연결은 `app` |
 | 녹음 음성 클립 | `app/src/main/res/raw/` |
 | Gleo 음성 명령 정의 | `app/src/main/assets/schema.json` |
 | 권한, 서비스, Gleo 명령 수신 설정 | `app/src/main/AndroidManifest.xml` |
