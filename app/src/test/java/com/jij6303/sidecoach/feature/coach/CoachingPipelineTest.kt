@@ -4,6 +4,7 @@ import com.jij6303.sidecoach.data.vehicle.GearPosition
 import com.jij6303.sidecoach.data.vehicle.TurnSignalState
 import com.jij6303.sidecoach.state.DrivingSnapshot
 import com.jij6303.sidecoach.feature.coach.detect.BlinkerOmissionDetector
+import com.jij6303.sidecoach.feature.coach.detect.DetectorManager
 import com.jij6303.sidecoach.feature.coach.detect.HardBrakeDetector
 import com.jij6303.sidecoach.feature.report.trip.TripRecorder
 import kotlinx.coroutines.flow.emptyFlow
@@ -19,7 +20,7 @@ class CoachingPipelineTest {
 
     private val pipeline = CoachingPipeline(
         updates = emptyFlow(),
-        detectors = listOf(BlinkerOmissionDetector(), HardBrakeDetector()),
+        detectors = DetectorManager(listOf(BlinkerOmissionDetector(), HardBrakeDetector())),
         arbiter = CoachingArbiter(),
         recorder = TripRecorder(),
     )
@@ -141,7 +142,7 @@ class CoachingPipelineTest {
     fun `달리는 중 P에 넣으면 성적표와 함께 기어 경고를 바로 말한다`() {
         val p = CoachingPipeline(
             updates = emptyFlow(),
-            detectors = listOf(com.jij6303.sidecoach.feature.coach.detect.GearShiftWhileMovingDetector()),
+            detectors = DetectorManager(listOf(com.jij6303.sidecoach.feature.coach.detect.GearShiftWhileMovingDetector())),
             arbiter = CoachingArbiter(),
             recorder = TripRecorder(),
         )

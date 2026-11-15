@@ -1,8 +1,9 @@
-package com.jij6303.sidecoach.feature.report.session
+package com.jij6303.sidecoach.app.session
 
 import com.jij6303.sidecoach.data.navi.FakeRouteNaviEventSource
 import com.jij6303.sidecoach.feature.coach.CoachType
 import com.jij6303.sidecoach.feature.coach.CoachingArbiter
+import com.jij6303.sidecoach.feature.coach.CoachingPipeline
 import com.jij6303.sidecoach.feature.report.Grade
 import com.jij6303.sidecoach.feature.report.NextTask
 import com.jij6303.sidecoach.feature.report.TripReport
@@ -18,7 +19,8 @@ import org.json.JSONObject
 object SessionStateCodec {
     const val VERSION = 1
 
-    fun encode(s: SessionState): String = JSONObject().apply {
+    fun encode(state: SessionState): String = JSONObject().apply {
+        val s = state.coaching
         put("v", VERSION)
         put("savedAt", s.savedAtMs)
         put("stats", stats(s.recorder.stats))
@@ -49,7 +51,7 @@ object SessionStateCodec {
                 put("nextTask", r.nextTask.name)
             })
         }
-        s.route?.let { rt ->
+        state.route?.let { rt ->
             put("route", JSONObject().apply {
                 put("odometerM", rt.odometerM)
                 put("speed", rt.speedKmh.toDouble())
@@ -64,7 +66,7 @@ object SessionStateCodec {
         return runCatching {
             val o = JSONObject(json)
             if (o.getInt("v") != VERSION) return null
-            SessionState(
+            val coaching = CoachingPipeline.State(
                 savedAtMs = o.getLong("savedAt"),
                 recorder = TripRecorder.State(stats(o.getJSONObject("stats")), o.getInt("praiseStreak")),
                 arbiter = CoachingArbiter.State(
@@ -103,16 +105,17 @@ object SessionStateCodec {
                         nextTask = NextTask.valueOf(r.getString("nextTask")),
                     )
                 },
-                route = o.optJSONObject("route")?.let { rt ->
-                    FakeRouteNaviEventSource.RouteState(
-                        odometerM = rt.getDouble("odometerM"),
-                        speedKmh = rt.getDouble("speed").toFloat(),
-                        lastSent = rt.getJSONObject("lastSent").let { ls ->
-                            ls.keys().asSequence().associateWith { ls.getInt(it) }
-                        },
-                    )
-                },
             )
+            val route = o.optJSONObject("route")?.let { rt ->
+                FakeRouteNaviEventSource.RouteState(
+                    odometerM = rt.getDouble("odometerM"),
+                    speedKmh = rt.getDouble("speed").toFloat(),
+                    lastSent = rt.getJSONObject("lastSent").let { ls ->
+                        ls.keys().asSequence().associateWith { ls.getInt(it) }
+                    },
+                )
+            }
+            SessionState(coaching, route)
         }.getOrNull()
     }
 

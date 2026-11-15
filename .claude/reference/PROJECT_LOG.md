@@ -717,6 +717,19 @@
 
 ---
 
+### #83 — 데이터 흐름 도식대로 구조 정리 (2026-11-15)
+
+**왜 이 작업을 했나**
+> 사용자가 `docs/data-flow.svg` 도식을 넣고 그대로 구조를 맞춰 달라고 함. 코드와 다른 곳은 두 군데: 디텍터 매니저가 없었고, SessionStore가 `feature/report`에 있었음 (도식은 `app`)
+
+**뭘 했나**
+> `feature/coach/detect/DetectorManager` 추가 (디텍터 목록 보관, 스냅샷 전달, 판정 결과 모음, reset). `CoachingPipeline`은 매니저만 호출. 세션 3개 파일을 `app/session/`으로 옮기고, `CoachingPipeline`은 자기 상태 `CoachingPipeline.State`만 내보냄. `app`의 `SessionState`는 `coaching` + `route`(시연 경로 위치)를 묶음. JSON 저장 형식(키·VERSION 1)은 그대로라 기존 저장분도 복원됨 (에뮬레이터에서 업데이트 전 저장분 복원, `am crash` 후 복원 확인). 단위 테스트 182개 통과
+
+**어떤 구조를 선택했고 왜**
+> SessionState를 `app`으로 옮기면 `CoachingPipeline`(feature)이 `app` 타입을 알게 되어 의존 방향이 깨짐. 그래서 파이프라인 상태 타입을 feature 쪽에 두고 `app`이 감싸는 구조로 함. 시연 경로 위치는 원래도 ServiceLocator가 붙였으므로 자연스럽게 `app` 쪽 필드가 됨
+
+---
+
 ## 🐛 에러 모음
 
 | 에러 | 원인 | 해결 |
