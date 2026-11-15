@@ -30,9 +30,31 @@
 - Gleo 음성 명령 (`assets/schema.json`), Foreground Service
 - minSdk 28, targetSdk 37
 
-## 빌드와 실행
+## APK
 
-- 요구 사항: Android Studio, Pleos Connect 에뮬레이터 v2.1.0 (API 34)
+- release APK: [apk/정인준_초보운전탈출_release.apk](apk/정인준_초보운전탈출_release.apk)
+
+## 테스트 환경
+
+- Pleos Connect 에뮬레이터 v2.1.0 (Android 14, API 34)
+- 화면 규격: 2560 × 1440, 160dpi (가로)
+- 에뮬레이터는 **Cold boot**로 켠다. Quick boot로 켜면 차량 신호(VHAL)가 동작하지 않는다.
+- 차량 신호는 Virtual Console(`adb forward tcp:8088 tcp:8088` 후 `http://127.0.0.1:8088`)로 조작한다.
+- 처음 실행할 때 나오는 위치 정보 권한을 허용한다. 차속을 읽는 권한이 위치 권한 그룹에 묶여 있다.
+
+## 실행 방법
+
+APK로 바로 설치:
+
+```bash
+adb install apk/정인준_초보운전탈출_release.apk
+```
+
+설치 후 앱 목록에서 **초보운전탈출**을 실행한다. 기어를 D로 바꾸고 Virtual Console로 주행하면 코칭 음성이 나온다.
+
+소스에서 빌드:
+
+- 요구 사항: Android Studio
 - Pleos SDK는 `nexus-playground.pleos.ai` 저장소에서 받는다 (`settings.gradle.kts`에 등록됨)
 
 ```bash
@@ -40,6 +62,8 @@
 ./gradlew installDebug           # 에뮬레이터에 설치
 ./gradlew testDebugUnitTest      # 단위 테스트
 ```
+
+release 빌드(`./gradlew assembleRelease`)는 루트에 `keystore.properties`(storeFile, storePassword, keyAlias, keyPassword)가 있을 때만 서명된다.
 
 에뮬레이터 준비, 차량 신호 조작, 시연 방법은 [docs/test-guide.md](docs/test-guide.md)에 있다.
 
