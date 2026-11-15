@@ -60,6 +60,12 @@ object MessageCatalog {
         SituationType.LANE_KEEP_LEFT -> "곧 왼쪽 길로 가요. 깜빡이 켜고 미리 왼쪽 차로로 옮겨두세요."
         SituationType.LANE_KEEP_RIGHT -> "곧 오른쪽 길로 가요. 깜빡이 켜고 미리 오른쪽 차로로 옮겨두세요."
         SituationType.LANE_STRAIGHT -> "곧 직진이에요. 1차로는 좌회전 전용일 수 있으니 2차로 이상에 있어요."
+        // 연속 회전 (#67). 앞 회전 직전에, 지나자마자 옮길 차로를 미리 말한다
+        SituationType.CHAIN_LEFT_TURN -> "그다음 바로 좌회전이에요. 지나자마자 왼쪽 차로로 가세요."
+        SituationType.CHAIN_RIGHT_TURN -> "그다음 바로 우회전이에요. 지나자마자 오른쪽 차로로 가세요."
+        SituationType.CHAIN_UTURN -> "그다음 바로 유턴이에요. 지나자마자 1차로로 가세요."
+        SituationType.CHAIN_KEEP_LEFT -> "그다음 바로 왼쪽 길이에요. 지나자마자 왼쪽 차로로 가세요."
+        SituationType.CHAIN_KEEP_RIGHT -> "그다음 바로 오른쪽 길이에요. 지나자마자 오른쪽 차로로 가세요."
     }
 
     /** 성적표가 뜰 때 한 문장. */

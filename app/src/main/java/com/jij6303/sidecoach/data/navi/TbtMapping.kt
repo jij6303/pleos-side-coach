@@ -22,6 +22,16 @@ object TbtMapping {
         }
     }
 
+    /** 앞 회전 바로 뒤에 이어지는 회전 [next]를 미리 알릴 유형 (#67). 직진·회전교차로 등은 null. */
+    fun chain(next: SituationType): SituationType? = when (next) {
+        SituationType.LANE_LEFT_TURN -> SituationType.CHAIN_LEFT_TURN
+        SituationType.LANE_RIGHT_TURN -> SituationType.CHAIN_RIGHT_TURN
+        SituationType.LANE_UTURN -> SituationType.CHAIN_UTURN
+        SituationType.LANE_KEEP_LEFT -> SituationType.CHAIN_KEEP_LEFT
+        SituationType.LANE_KEEP_RIGHT -> SituationType.CHAIN_KEEP_RIGHT
+        else -> null
+    }
+
     /** `ai.pleos.playground.navi.constants.CautionPointType` 이름. */
     fun caution(cautionTypeName: String): SituationType? = when (cautionTypeName) {
         "SCHOOL_ZONE" -> SituationType.SCHOOL_ZONE
