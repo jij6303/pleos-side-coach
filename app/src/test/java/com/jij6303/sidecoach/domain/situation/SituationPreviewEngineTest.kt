@@ -34,6 +34,15 @@ class SituationPreviewEngineTest {
     }
 
     @Test
+    fun `차로 안내는 500~200m에서 더 일찍 예고한다`() {
+        fun lane(d: Float) = NaviEvent.Situation("t1", SituationType.LANE_LEFT_TURN, d, 0)
+        assertNull(engine.onEvent(lane(520f)))
+        val m = engine.onEvent(lane(450f))
+        assertEquals(MessageCatalog.preview(SituationType.LANE_LEFT_TURN), m?.text)
+        assertNull(SituationPreviewEngine().onEvent(lane(180f))) // 200m 안쪽에서 처음 알면 늦음
+    }
+
+    @Test
     fun `다른 지점은 각각 예고한다`() {
         assertNotNull(engine.onEvent(ev(250f, key = "a")))
         assertNotNull(engine.onEvent(ev(250f, key = "b")))

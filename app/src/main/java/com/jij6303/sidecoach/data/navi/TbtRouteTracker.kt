@@ -1,0 +1,102 @@
+package com.jij6303.sidecoach.data.navi
+
+import com.jij6303.sidecoach.domain.DrivingSnapshot
+import com.jij6303.sidecoach.domain.situation.SituationType
+
+/**
+ * 내비 TBT 목록·주의 지점 → 지점까지 남은 거리 (#65).
+ *
+ * 실측(#63): `TBTInfo.distance`는 남은 거리가 아니라 **이전 지점부터의 구간 거리**이고, 경로 시작 때 전체 목록이 한 번 온다.
+ * 그래서 구간 거리를 누적해 지점 위치를 만들고, 차속을 적분한 이동 거리로 남은 거리를 계산한다(시연 경로와 같은 방식).
+ * - 같은 목록이 다시 오면 무시한다(이동 거리 유지). 다른 목록이 오면(재탐색 등) 지금 위치를 새 출발점으로 본다.
+ * - 회전은 안내할 수 있는 지점([TbtMapping]) 중 **다음 지점 하나만** 알린다. 뒤 지점을 먼저 말해 헷갈리지 않게.
+ * - 주의 지점(`CautionPoint.remainDistance`)은 받은 순간 위치에 더해 지점 위치로 바꾼다. 같은 id가 다시 오면 위치를 고친다.
+ * - 주행 중 내비가 목록·거리를 갱신하는지는 에뮬레이터에서 확인하지 못했다(❓, dev-architecture 0.1).
+ *
+ * 스냅샷 수집·타이머·SDK 콜백이 동시에 부르므로 동기화한다. 시각은 스냅샷 timestamp와 같은 시계여야 한다.
+ */
+class TbtRouteTracker(
+    /** 이 거리 안에 들어온 지점만 알린다. 차로 안내 예고 구간(500m)보다 넓게. */
+    private val horizonM: Float = 600f,
+    /** 남은 거리를 이 단위로 끊어 보낸다 (이벤트 수 줄이기). */
+    private val stepM: Float = 10f,
+) {
+    /** TBT 한 항목. [turnTypeName]은 SDK `TurnType`의 이름. */
+    data class Segment(val turnTypeName: String, val distanceM: Double, val description: String)
+
+    private data class Point(val key: String, val type: SituationType, val atM: Double)
+
+    private var segments: List<Segment> = emptyList()
+    private var turns: List<Point> = emptyList()
+    private val cautions = mutableMapOf<String, Point>()
+    private var generation = 0
+    private var odometerM = 0.0
+    private var lastTs = 0L
+    private var started = false
+    private var speedKmh = 0f
+    private val lastSent = mutableMapOf<String, Int>()
+
+    /** 경로 안내 중인지 (TBT 목록이 있는지). */
+    val hasRoute: Boolean @Synchronized get() = segments.isNotEmpty()
+
+    /** 새 TBT 목록. 같은 목록이면 무시한다. */
+    @Synchronized
+    fun setRoute(newSegments: List<Segment>, nowMs: Long): List<NaviEvent> {
+        if (newSegments == segments) return emptyList()
+        val out = advance(nowMs)
+        segments = newSegments
+        generation++
+        var at = odometerM
+        turns = newSegments.mapIndexedNotNull { i, seg ->
+            at += seg.distanceM
+            TbtMapping.turn(seg.turnTypeName)?.let { Point("tbt-$generation-$i", it, at) }
+        }
+        return out + emitNear(nowMs)
+    }
+
+    /** 주의 지점 하나. 지금 위치에서 [remainM] 앞. */
+    @Synchronized
+    fun putCaution(key: String, type: SituationType, remainM: Double, nowMs: Long): List<NaviEvent> {
+        val out = advance(nowMs)
+        cautions[key] = Point(key, type, odometerM + remainM)
+        return out + emitNear(nowMs)
+    }
+
+    /** 경로 안내가 끝났다(취소·도착). */
+    @Synchronized
+    fun clear() {
+        segments = emptyList()
+        turns = emptyList()
+        cautions.clear()
+        lastSent.clear()
+    }
+
+    @Synchronized
+    fun onSnapshot(s: DrivingSnapshot): List<NaviEvent> {
+        val out = advance(s.timestampMs)
+        speedKmh = s.speedKmh ?: speedKmh
+        return out
+    }
+
+    /** 마지막 차속으로 [nowMs]까지 이동했다고 보고 갱신한다. 같은 차속이면 차속 이벤트가 안 올 수 있어 타이머로도 부른다. */
+    @Synchronized
+    fun advance(nowMs: Long): List<NaviEvent> {
+        if (started) odometerM += speedKmh / 3.6 * (nowMs - lastTs).coerceAtLeast(0) / 1000.0
+        started = true
+        lastTs = nowMs
+        return emitNear(nowMs)
+    }
+
+    private fun emitNear(nowMs: Long): List<NaviEvent> {
+        cautions.values.removeAll { it.atM < odometerM }
+        val nextTurn = turns.firstOrNull { it.atM >= odometerM }
+        return (listOfNotNull(nextTurn) + cautions.values).mapNotNull { p ->
+            val remaining = (p.atM - odometerM).toFloat()
+            if (remaining > horizonM) return@mapNotNull null
+            val bucket = (remaining / stepM).toInt()
+            if (lastSent[p.key] == bucket) return@mapNotNull null
+            lastSent[p.key] = bucket
+            NaviEvent.Situation(p.key, p.type, remaining, nowMs)
+        }
+    }
+}

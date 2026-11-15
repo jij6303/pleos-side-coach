@@ -6,6 +6,8 @@ import android.util.Log
 import com.jij6303.sidecoach.R
 import com.jij6303.sidecoach.data.navi.FakeRouteNaviEventSource
 import com.jij6303.sidecoach.data.navi.NaviEventSource
+import com.jij6303.sidecoach.data.navi.PleosNaviEventSource
+import com.jij6303.sidecoach.data.navi.RoutingNaviEventSource
 import com.jij6303.sidecoach.data.store.ParkingSettings
 import com.jij6303.sidecoach.data.store.SessionStore
 import com.jij6303.sidecoach.data.ux.AaosUxRestrictionSource
@@ -69,7 +71,7 @@ object ServiceLocator {
     lateinit var coachingPipeline: CoachingPipeline
         private set
 
-    /** MVP는 시연용 가짜 경로 (NaviHelper 실연동은 2차). */
+    /** 실제 내비로 경로 안내 중이면 NaviHelper, 아니면 시연 경로 (#65). Fake 차량 모드는 시연 경로만. */
     lateinit var naviEventSource: NaviEventSource
         private set
 
@@ -132,7 +134,17 @@ object ServiceLocator {
         uiMode = uiModeSource.stateIn(appScope, SharingStarted.WhileSubscribed(5_000), UiMode.DRIVING_VOICE)
         clock = if (useFake) System::currentTimeMillis else SystemClock::elapsedRealtime
         fakeRoute = FakeRouteNaviEventSource(drivingStateRepository.updates, clock)
-        naviEventSource = fakeRoute
+        naviEventSource = if (useFake) {
+            fakeRoute
+        } else {
+            val real = PleosNaviEventSource(
+                context = context,
+                snapshots = drivingStateRepository.updates,
+                clock = clock,
+                log = { Log.i("Navi", it) },
+            )
+            RoutingNaviEventSource(real, real.routeActive, fakeRoute, appScope)
+        }
         sessionStore = SessionStore(context)
         tipSpeaker = CarTipSpeaker(clock)
         parkingSettings = ParkingSettings(context)
@@ -175,6 +187,12 @@ object ServiceLocator {
                 MessageCatalog.preview(SituationType.SCHOOL_ZONE) to R.raw.preview_school_zone,
                 MessageCatalog.preview(SituationType.UNPROTECTED_LEFT) to R.raw.preview_unprotected_left,
                 MessageCatalog.preview(SituationType.MERGE) to R.raw.preview_merge,
+                MessageCatalog.preview(SituationType.LANE_LEFT_TURN) to R.raw.lane_left_turn,
+                MessageCatalog.preview(SituationType.LANE_RIGHT_TURN) to R.raw.lane_right_turn,
+                MessageCatalog.preview(SituationType.LANE_UTURN) to R.raw.lane_uturn,
+                MessageCatalog.preview(SituationType.LANE_KEEP_LEFT) to R.raw.lane_keep_left,
+                MessageCatalog.preview(SituationType.LANE_KEEP_RIGHT) to R.raw.lane_keep_right,
+                MessageCatalog.preview(SituationType.LANE_STRAIGHT) to R.raw.lane_straight,
                 CarTip.WINDSHIELD_FOG.spoken to R.raw.tip_windshield_fog,
                 CarTip.REAR_WINDOW_FOG.spoken to R.raw.tip_rear_window_fog,
                 CarTip.RECIRCULATION.spoken to R.raw.tip_recirculation,

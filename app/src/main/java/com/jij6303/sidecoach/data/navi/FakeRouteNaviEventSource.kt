@@ -5,6 +5,8 @@ import com.jij6303.sidecoach.domain.DrivingSnapshot
 import com.jij6303.sidecoach.domain.situation.SituationType
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.launch
 
@@ -29,7 +31,7 @@ class FakeRouteNaviEventSource(
 
     data class RoutePoint(val key: String, val type: SituationType, val atM: Float)
 
-    override val isDemo: Boolean = true
+    override val isDemo: StateFlow<Boolean> = MutableStateFlow(true)
 
     /** 경로 위치. 저장·복원할 수 있도록 하나만 둔다 (events는 한 곳에서만 구독). */
     private val tracker = Tracker()

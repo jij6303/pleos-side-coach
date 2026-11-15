@@ -9,6 +9,9 @@
     <uses-permission android:name="pleos.car.permission.CAR_LIGHTS" />        <!-- TurnSignal -->
     <uses-permission android:name="pleos.car.permission.CAR_DRIVE" />         <!-- Brake -->
     <uses-permission android:name="pleos.car.permission.READ_CAR_STEERING" /> <!-- SteeringWheel 각도 -->
+    <!-- NaviHelper getTBTInfo(): 경로 안내 중 늦게 켠 경우 회전 목록 조회 (#65). 리스너 수신만이면 필요 없음.
+         경로 설정용 NAVI_ROUTE_SEARCH, NAVI_CUSTOM_*는 쓰지 않으므로 선언하지 않음 -->
+    <uses-permission android:name="pleos.car.permission.NAVI_ROUTE" />
 
     <!-- AAOS 표준 -->
     <uses-permission android:name="android.car.permission.CAR_POWERTRAIN" />      <!-- GEAR_SELECTION, PARKING_BRAKE_ON -->
