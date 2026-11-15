@@ -1,6 +1,7 @@
 package com.jij6303.sidecoach.feature.report.trip
 
 import com.jij6303.sidecoach.data.vehicle.GearPosition
+import com.jij6303.sidecoach.feature.Restorable
 import com.jij6303.sidecoach.state.DrivingSnapshot
 
 /** 한 번의 주행에서 잰 값. */
@@ -24,7 +25,7 @@ data class TripMetrics(
  *
  * 시간은 스냅샷 timestamp를 쓴다 (JVM 테스트에서 조작 가능).
  */
-class TripSession(private val config: Config = Config()) {
+class TripSession(private val config: Config = Config()) : Restorable<TripSession.State?> {
 
     /** 💭 설계 가정. */
     data class Config(
@@ -138,7 +139,7 @@ class TripSession(private val config: Config = Config()) {
     )
 
     /** 진행 중이거나 이어갈 수 있는 주행이 없으면 null. */
-    fun exportState(): State? =
+    override fun exportState(): State? =
         if (!active && pausedAt == null) null
         else State(startedAt, lastSpeed, movingMs, distanceKm, maxSpeed, pausedAt.takeIf { !active })
 
@@ -146,7 +147,7 @@ class TripSession(private val config: Config = Config()) {
      * 저장된 주행을 이어간다. 마지막 시각을 [nowMs]로 맞춰,
      * 프로세스가 내려가 있던 동안은 주행 시간·거리에 넣지 않는다.
      */
-    fun restore(state: State?, nowMs: Long) {
+    override fun restore(state: State?, nowMs: Long) {
         if (state == null) {
             reset()
             return

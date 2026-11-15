@@ -6,7 +6,6 @@ import com.jij6303.sidecoach.state.DrivingSnapshot
 import com.jij6303.sidecoach.feature.coach.detect.BlinkerOmissionDetector
 import com.jij6303.sidecoach.feature.coach.detect.DetectorManager
 import com.jij6303.sidecoach.feature.coach.detect.HardBrakeDetector
-import com.jij6303.sidecoach.feature.report.trip.TripRecorder
 import kotlinx.coroutines.flow.emptyFlow
 import com.jij6303.sidecoach.data.navi.NaviEvent
 import com.jij6303.sidecoach.feature.report.Grade
@@ -21,8 +20,6 @@ class CoachingPipelineTest {
     private val pipeline = CoachingPipeline(
         updates = emptyFlow(),
         detectors = DetectorManager(listOf(BlinkerOmissionDetector(), HardBrakeDetector())),
-        arbiter = CoachingArbiter(),
-        recorder = TripRecorder(),
     )
 
     private fun laneChange(t0: Long, signal: TurnSignalState): List<CoachMessage> {
@@ -143,8 +140,6 @@ class CoachingPipelineTest {
         val p = CoachingPipeline(
             updates = emptyFlow(),
             detectors = DetectorManager(listOf(com.jij6303.sidecoach.feature.coach.detect.GearShiftWhileMovingDetector())),
-            arbiter = CoachingArbiter(),
-            recorder = TripRecorder(),
         )
         (0L..10_000L step 1_000).forEach {
             p.process(DrivingSnapshot(timestampMs = it, speedKmh = 30f, gear = GearPosition.DRIVE))

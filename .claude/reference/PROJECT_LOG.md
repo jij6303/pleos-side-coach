@@ -730,6 +730,23 @@
 
 ---
 
+### #85 — 패키지 책임을 객체지향적으로 정리 (2026-11-15)
+
+**왜 이 작업을 했나**
+> 사용자 요청: 도식 구조에 맞춰 클래스마다 책임과 역할이 드러나게. `CoachingPipeline`이 주행 구분·차로·판정·칭찬·문구 변환·성적표·저장을 다 하고 있었고, `TripRecorder`가 칭찬 판단까지, `SituationType`(data)이 예고 거리 정책까지, `ServiceLocator`가 클립 목록 70줄까지 들고 있었음
+
+**뭘 했나**
+> - `CoachingPipeline`은 순서만 정하는 조율자. 새 클래스: `CoachMessageFactory`(판정→메시지), `PraiseCounter`(연속 칭찬), `TripReporter`(TripSession+TripRecorder+ReportGenerator)
+> - `PreviewWindow`(feature/coach/situation)로 예고 구간 이동, `SituationType`은 종류·이름만
+> - `feature/Restorable<S>`: TripRecorder, TripSession, CoachingArbiter, SituationPreviewEngine, PraiseCounter, TripReporter, CoachingPipeline이 구현. FakeRouteNaviEventSource는 data 계층이라 제외
+> - `app/di`: `DataModule`, `CoachModule`(세션 복원 포함), `ParkingModule`, `VoiceModule`. 클립 목록은 `CoachClips`·`ReportClips`·`TipClips`·`ParkingClips`. `ServiceLocator`는 공개 API 그대로 두고 모듈에 위임
+> - 저장 JSON 키·VERSION 그대로. 단위 테스트 192개(새 10개). 에뮬레이터: 이전 저장분 복원, `am crash` 후 복원, 시연 시나리오 코칭 10종 모두 정상
+
+**어떤 구조를 선택했고 왜**
+> 성적표는 끝나는 스냅샷의 판정(움직이는 중 P)까지 넣어야 해서, `TripReporter.onSnapshot`은 종료만 알리고 기록을 마친 뒤 `issueReport`로 만들게 함 (먼저 만들면 기어 경고가 성적표에서 빠짐). `Restorable`은 feature만 쓰므로 `feature/` 루트에 둠. Gradle 모듈 분리는 마감일이라 보류(사용자 결정)
+
+---
+
 ## 🐛 에러 모음
 
 | 에러 | 원인 | 해결 |

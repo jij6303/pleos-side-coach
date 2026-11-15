@@ -12,7 +12,7 @@ import com.jij6303.sidecoach.feature.coach.detect.DetectorManager
 import com.jij6303.sidecoach.feature.coach.detect.HardBrakeDetector
 import com.jij6303.sidecoach.feature.report.Grade
 import com.jij6303.sidecoach.data.navi.SituationType
-import com.jij6303.sidecoach.feature.report.trip.TripRecorder
+import com.jij6303.sidecoach.feature.report.TripReporter
 import com.jij6303.sidecoach.feature.report.trip.TripSession
 import com.jij6303.sidecoach.feature.report.trip.TripStats
 import kotlinx.coroutines.flow.emptyFlow
@@ -28,8 +28,6 @@ class SessionRestoreTest {
     private fun pipeline() = CoachingPipeline(
         updates = emptyFlow(),
         detectors = DetectorManager(listOf(BlinkerOmissionDetector(), HardBrakeDetector())),
-        arbiter = CoachingArbiter(),
-        recorder = TripRecorder(),
     )
 
     /** 코칭 상태를 저장 형식으로 썼다가 다시 읽는다. */
@@ -51,7 +49,7 @@ class SessionRestoreTest {
     fun `T13 프로세스가 다시 만들어져도 통계와 진행 중 주행을 이어간다`() {
         val before = drivenPipeline()
         val saved = roundTrip(before).coaching
-        assertNotNull(saved.trip)
+        assertNotNull(saved.trip.session)
 
         // 새 프로세스: 20초 뒤(다운타임 8초) 복원
         val after = pipeline()
@@ -88,7 +86,7 @@ class SessionRestoreTest {
         p.process(snap(13_000, GearPosition.DRIVE, 0f))
         p.process(snap(14_000, GearPosition.PARK, 0f))
         val saved = roundTrip(p).coaching
-        assertEquals(14_000L, saved.trip?.pausedAtMs) // P에 넣은 시각: 이어가기 판단용 (#51)
+        assertEquals(14_000L, saved.trip.session?.pausedAtMs) // P에 넣은 시각: 이어가기 판단용 (#51)
 
         val after = pipeline().apply { restore(saved, nowMs = 15_000) }
         assertEquals(Grade.GREAT, after.lastReport.value?.grade)
@@ -146,9 +144,9 @@ class SessionRestoreTest {
         session.onSnapshot(snap(10_000, GearPosition.DRIVE, 0f))
         session.onSnapshot(snap(11_000, GearPosition.PARK, 0f))
         val state = SessionStateCodec.decode(
-            SessionStateCodec.encode(SessionState(CoachingPipeline.State(savedAtMs = 11_000, recorder = TripRecorder().exportState(),
-                arbiter = CoachingArbiter().exportState(), trip = session.exportState(), announced = emptyMap(), pendingReport = null))),
-        )!!.coaching.trip
+            SessionStateCodec.encode(SessionState(CoachingPipeline.State(savedAtMs = 11_000, trip = TripReporter.State(TripStats(), session.exportState(), null),
+                praiseStreak = 0, arbiter = CoachingArbiter().exportState(), announced = emptyMap()))),
+        )!!.coaching.trip.session
 
         val restored = TripSession()
         restored.restore(state, nowMs = 20_000)
@@ -158,14 +156,14 @@ class SessionRestoreTest {
     @Test
     fun `새 코칭 횟수도 저장하고, 예전 저장 데이터는 0으로 읽는다 (#53)`() {
         val stats = TripStats(hardBrakes = 1, blinkerLeftOn = 2, turnTooFast = 3, gearShiftsMoving = 4)
-        val state = SessionState(CoachingPipeline.State(savedAtMs = 1, recorder = TripRecorder.State(stats, 0),
-            arbiter = CoachingArbiter().exportState(), trip = null, announced = emptyMap(), pendingReport = null))
+        val state = SessionState(CoachingPipeline.State(savedAtMs = 1, trip = TripReporter.State(stats, null, null),
+            praiseStreak = 0, arbiter = CoachingArbiter().exportState(), announced = emptyMap()))
         val json = SessionStateCodec.encode(state)
-        assertEquals(stats, SessionStateCodec.decode(json)!!.coaching.recorder.stats)
+        assertEquals(stats, SessionStateCodec.decode(json)!!.coaching.trip.stats)
 
         val old = org.json.JSONObject(json).apply {
             getJSONObject("stats").apply { remove("blinkerLeftOn"); remove("turnTooFast"); remove("gearShiftsMoving") }
         }.toString()
-        assertEquals(TripStats(hardBrakes = 1), SessionStateCodec.decode(old)!!.coaching.recorder.stats)
+        assertEquals(TripStats(hardBrakes = 1), SessionStateCodec.decode(old)!!.coaching.trip.stats)
     }
 }

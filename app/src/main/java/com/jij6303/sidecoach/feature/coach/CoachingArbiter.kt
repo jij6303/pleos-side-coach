@@ -1,12 +1,14 @@
 package com.jij6303.sidecoach.feature.coach
 
+import com.jij6303.sidecoach.feature.Restorable
+
 /**
  * 여러 디텍터가 동시에 말하려 할 때 무엇을 언제 말할지 정한다 (dev-architecture 4.5).
  *
  * 시간은 인자로 받는다. [submit]으로 후보를 넣고, [next]로 지금 말할 메시지를 꺼낸다.
  * [next]는 새 스냅샷이 들어올 때마다 호출되므로, 간격 때문에 대기 중인 메시지도 다음 호출 때 나간다.
  */
-class CoachingArbiter(private val config: Config = Config()) {
+class CoachingArbiter(private val config: Config = Config()) : Restorable<CoachingArbiter.State> {
     /** 💭 설계 가정. */
     data class Config(
         val minGapMs: Long = 6_000,
@@ -68,9 +70,9 @@ class CoachingArbiter(private val config: Config = Config()) {
     /** 저장용 상태. 대기열은 TTL(4초)이 짧아 저장하지 않는다. */
     data class State(val spokenCounts: Map<CoachType, Int>, val lastSpokenMs: Long?)
 
-    fun exportState(): State = State(spokenCount.toMap(), lastSpokenMs)
+    override fun exportState(): State = State(spokenCount.toMap(), lastSpokenMs)
 
-    fun restore(state: State) {
+    override fun restore(state: State, nowMs: Long) {
         queue.clear()
         spokenCount.clear()
         spokenCount.putAll(state.spokenCounts)

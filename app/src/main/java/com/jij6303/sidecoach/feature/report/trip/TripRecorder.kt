@@ -1,5 +1,6 @@
 package com.jij6303.sidecoach.feature.report.trip
 
+import com.jij6303.sidecoach.feature.Restorable
 import com.jij6303.sidecoach.feature.coach.detect.DetectionEvent
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -21,72 +22,33 @@ data class TripStats(
         get() = if (laneChanges == 0) null else signalledLaneChanges.toFloat() / laneChanges
 }
 
-/** 주행 중 사건을 집계한다. 성적표와 칭찬 트리거에 쓴다. */
-class TripRecorder(private val praiseStreak: Int = DEFAULT_PRAISE_STREAK) {
+/** 주행 중 판정 결과를 횟수로 쌓는다. 성적표가 이 통계로 점수를 매긴다. */
+class TripRecorder : Restorable<TripStats> {
 
     private val _stats = MutableStateFlow(TripStats())
     val stats: StateFlow<TripStats> = _stats.asStateFlow()
 
-    private var streak = 0
-
-    /** 사건을 기록한다. 깜빡이를 켠 차선 변경이 [praiseStreak]회 연속되면 true(칭찬할 때). */
-    fun record(event: DetectionEvent): Boolean {
+    fun record(event: DetectionEvent) {
         val s = _stats.value
-        return when (event) {
-            is DetectionEvent.LaneChange -> {
-                _stats.value = s.copy(
-                    laneChanges = s.laneChanges + 1,
-                    signalledLaneChanges = s.signalledLaneChanges + if (event.signalled) 1 else 0,
-                )
-                if (event.signalled) {
-                    streak++
-                    if (streak >= praiseStreak) {
-                        streak = 0
-                        true
-                    } else {
-                        false
-                    }
-                } else {
-                    streak = 0
-                    false
-                }
-            }
-            is DetectionEvent.HardBrake -> {
-                _stats.value = s.copy(hardBrakes = s.hardBrakes + 1)
-                false
-            }
-            is DetectionEvent.BlinkerLeftOn -> {
-                _stats.value = s.copy(blinkerLeftOn = s.blinkerLeftOn + 1)
-                false
-            }
-            is DetectionEvent.TurnTooFast -> {
-                _stats.value = s.copy(turnTooFast = s.turnTooFast + 1)
-                false
-            }
-            is DetectionEvent.GearShiftWhileMoving -> {
-                _stats.value = s.copy(gearShiftsMoving = s.gearShiftsMoving + 1)
-                false
-            }
+        _stats.value = when (event) {
+            is DetectionEvent.LaneChange -> s.copy(
+                laneChanges = s.laneChanges + 1,
+                signalledLaneChanges = s.signalledLaneChanges + if (event.signalled) 1 else 0,
+            )
+            is DetectionEvent.HardBrake -> s.copy(hardBrakes = s.hardBrakes + 1)
+            is DetectionEvent.BlinkerLeftOn -> s.copy(blinkerLeftOn = s.blinkerLeftOn + 1)
+            is DetectionEvent.TurnTooFast -> s.copy(turnTooFast = s.turnTooFast + 1)
+            is DetectionEvent.GearShiftWhileMoving -> s.copy(gearShiftsMoving = s.gearShiftsMoving + 1)
         }
     }
 
     fun reset() {
         _stats.value = TripStats()
-        streak = 0
     }
 
-    companion object {
-        /** 💭 깜빡이 켠 차선 변경 3회 연속이면 칭찬. */
-        const val DEFAULT_PRAISE_STREAK = 3
-    }
+    override fun exportState(): TripStats = _stats.value
 
-    /** 저장용 상태: 통계 + 칭찬 연속 횟수. */
-    data class State(val stats: TripStats, val praiseStreak: Int)
-
-    fun exportState(): State = State(_stats.value, streak)
-
-    fun restore(state: State) {
-        _stats.value = state.stats
-        streak = state.praiseStreak
+    override fun restore(state: TripStats, nowMs: Long) {
+        _stats.value = state
     }
 }
