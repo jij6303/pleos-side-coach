@@ -1,6 +1,5 @@
 package com.jij6303.sidecoach.data.navi
 
-import com.jij6303.sidecoach.state.DrivingSnapshot
 
 /**
  * 내비 TBT 목록 → 회전 지점까지 남은 거리 (#65).
@@ -13,7 +12,7 @@ import com.jij6303.sidecoach.state.DrivingSnapshot
  *   **다음 회전까지 남은 거리**를 붙여 함께 알린다(#67). 지나고 나면 차로 안내 구간(200m)보다 가까워 놓치기 때문.
  * - 주행 중 내비가 목록·거리를 갱신하는지는 에뮬레이터에서 확인하지 못했다(❓, dev-architecture 0.1).
  *
- * 스냅샷 수집·타이머·SDK 콜백이 동시에 부르므로 동기화한다. 시각은 스냅샷 timestamp와 같은 시계여야 한다.
+ * 차량 움직임 수집·타이머·SDK 콜백이 동시에 부르므로 동기화한다. 시각은 차량 움직임 timestamp와 같은 시계여야 한다.
  */
 class TbtRouteTracker(
     /** 이 거리 안에 들어온 지점만 알린다. 차로 안내 예고 구간(500m)보다 넓게. */
@@ -63,7 +62,7 @@ class TbtRouteTracker(
     }
 
     @Synchronized
-    fun onSnapshot(s: DrivingSnapshot): List<NaviEvent> {
+    fun onMotion(s: VehicleMotion): List<NaviEvent> {
         val out = advance(s.timestampMs)
         speedKmh = s.speedKmh ?: speedKmh
         return out

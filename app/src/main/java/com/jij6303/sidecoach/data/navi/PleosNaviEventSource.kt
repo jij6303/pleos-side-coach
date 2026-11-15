@@ -7,7 +7,6 @@ import ai.pleos.playground.navi.data.TBTInfo
 import ai.pleos.playground.navi.helper.NaviHelper
 import ai.pleos.playground.navi.helper.listener.NaviHelperEventListener
 import android.content.Context
-import com.jij6303.sidecoach.state.DrivingSnapshot
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -28,7 +27,7 @@ import kotlinx.coroutines.launch
  */
 class PleosNaviEventSource(
     context: Context,
-    private val snapshots: Flow<DrivingSnapshot>,
+    private val motions: Flow<VehicleMotion>,
     private val clock: () -> Long,
     private val tickMs: Long = 1_000,
     private val log: (String) -> Unit = {},
@@ -84,7 +83,7 @@ class PleosNaviEventSource(
             { e -> log("NaviHelper init failed: $e") },
         )
 
-        launch { snapshots.collect { emit(tracker.onSnapshot(it)) } }
+        launch { motions.collect { emit(tracker.onMotion(it)) } }
         launch {
             while (true) {
                 delay(tickMs)
