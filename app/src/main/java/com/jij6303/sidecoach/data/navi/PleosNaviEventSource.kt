@@ -3,6 +3,7 @@ package com.jij6303.sidecoach.data.navi
 import ai.pleos.playground.navi.constants.NaviErrorCode
 import ai.pleos.playground.navi.constants.NavigationStatus
 import ai.pleos.playground.navi.data.DestinationArrivedInfo
+import ai.pleos.playground.navi.data.RouteStateInfo
 import ai.pleos.playground.navi.data.TBTInfo
 import ai.pleos.playground.navi.helper.NaviHelper
 import ai.pleos.playground.navi.helper.listener.NaviHelperEventListener
@@ -22,6 +23,8 @@ import kotlinx.coroutines.flow.channelFlow
  *   `pleos.car.permission.NAVI_ROUTE`가 필요하고, 없으면 `SecurityException` → 다음 경로 시작부터 리스너로만 동작한다.
  * - 목록을 경로([TbtMapping.route])로 바꿔 보낸다. 같은 목록이 다시 오면 무시하고, 다른 목록(재탐색)은 새 경로로 보낸다.
  * - 남은 거리는 받는 쪽(상황 예고)이 차속으로 계산한다. 이 소스는 차량 신호를 받지 않는다.
+ * - 내비가 경로 안내 중이 아니어도 `getTBTInfo()`가 지난 경로의 목록을 돌려줄 수 있다(에뮬레이터 실측).
+ *   그래서 목록을 받을 때마다 `getRouteStateInfo()`로 안내 중인지 확인하고, 아니면 경로를 끝낸다.
  * - 주의 지점(`onCautionPointInfo`: 어린이보호구역·과속방지턱 등)은 쓰지 않는다. 내비가 이미 알리므로 겹친다 (#71).
  */
 class PleosNaviEventSource(
@@ -48,6 +51,10 @@ class PleosNaviEventSource(
             _routeActive.value = false
         }
 
+        val helper = NaviHelper(appContext)
+        fun checkRouting() = runCatching { helper.getRouteStateInfo() }
+            .onFailure { log("getRouteStateInfo failed: ${it.message}") }
+
         val listener = object : NaviHelperEventListener {
             override fun onTBTInfo(tbtInfoList: List<TBTInfo>) {
                 val segments = tbtInfoList.map { TbtMapping.Segment(it.type.name, it.distance, it.description) }
@@ -58,6 +65,11 @@ class PleosNaviEventSource(
                     trySend(NaviEvent.RouteStarted(TbtMapping.route(segments, clock()), clock()))
                 }
                 _routeActive.value = true
+                checkRouting() // 지난 경로의 목록일 수 있다
+            }
+
+            override fun onRouteStateInfo(routeStateInfo: RouteStateInfo) {
+                if (!routeStateInfo.isRouting && _routeActive.value) endRoute("not routing")
             }
 
             override fun onNavigationStatus(status: NavigationStatus) {
@@ -69,7 +81,6 @@ class PleosNaviEventSource(
             override fun onError(errorCode: NaviErrorCode) = log("onError $errorCode")
         }
 
-        val helper = NaviHelper(appContext)
         helper.initialize(
             {
                 helper.addListener(listener)
