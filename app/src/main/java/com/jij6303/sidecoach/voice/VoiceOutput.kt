@@ -1,9 +1,7 @@
 package com.jij6303.sidecoach.voice
 
-import android.util.Log
-
 /**
- * 코칭 문구를 소리로 내는 출력 장치 (dev-architecture 6.2).
+ * 코칭 문구를 소리로 내는 출력 장치.
  * MVP는 Android 표준 TTS([AndroidTtsVoiceOutput]), Pleos TTS SDK가 나오면 구현만 바꾼다.
  */
 interface VoiceOutput {
@@ -17,17 +15,4 @@ interface VoiceOutput {
     fun stop()
 
     fun release()
-}
-
-/** 소리 없이 logcat에만 남기는 구현 (TTS 없는 환경·데모용). */
-class LogVoiceOutput : VoiceOutput {
-    override val isReady: Boolean = true
-    override suspend fun speak(text: String): Boolean {
-        Log.i(TAG, "speak(log only): $text")
-        return true
-    }
-    override fun stop() = Unit
-    override fun release() = Unit
-
-    private companion object { const val TAG = "Voice" }
 }

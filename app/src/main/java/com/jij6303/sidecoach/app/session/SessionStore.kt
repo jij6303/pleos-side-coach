@@ -4,7 +4,7 @@ import android.content.Context
 import android.util.Log
 
 /**
- * 주행 세션 저장소 (dev-architecture 9장 SessionStore, #31).
+ * 주행 세션 저장소 (#31).
  * 설계는 DataStore였지만 값 하나(JSON 문자열)만 저장하므로 SharedPreferences로 충분해 의존성을 늘리지 않았다.
  * apply()는 비동기 쓰기라 5초마다 저장해도 주행 처리를 막지 않는다.
  */

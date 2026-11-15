@@ -3,7 +3,7 @@ package com.jij6303.sidecoach.app.gleo
 import org.json.JSONObject
 
 /**
- * Gleo로 보내는 응답 (dev-architecture 7.3).
+ * Gleo로 보내는 응답.
  * [message]는 영어 완전한 문장, [data]는 JSON 배열 문자열(권장).
  */
 data class GleoResponse(

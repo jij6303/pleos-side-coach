@@ -6,7 +6,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
 
-/** assets/schema.json이 가이드 규칙과 코드에 맞는지 확인 (pleos-dev-guide-summary 3장). */
+/** assets/schema.json이 가이드 규칙과 코드에 맞는지 확인. */
 class GleoSchemaTest {
 
     // 단위 테스트의 작업 디렉터리는 app 모듈

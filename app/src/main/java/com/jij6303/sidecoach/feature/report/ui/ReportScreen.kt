@@ -42,7 +42,7 @@ import kotlin.math.roundToInt
 private val Gap = 20.dp
 
 /**
- * 주행 후 성적표 (concept ⑤, dev-architecture 5.2 PARKED_FULL 전용).
+ * 주행 후 성적표 (concept ④, 정차 화면 전용).
  * [onClose]는 "확인" 버튼과 Back(하위 화면 규칙)에서 부른다.
  */
 @Composable

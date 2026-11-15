@@ -3,7 +3,7 @@ package com.jij6303.sidecoach.data.navi
 
 /**
  * NaviHelper 상수 이름 → 앱 상황 유형 (#65). SDK enum의 `name`을 받아 SDK 없이 테스트할 수 있게 한다.
- * 상수 목록은 navi-data 3.0.4 바이트코드로 확인(#63, dev-architecture 0.1).
+ * 상수 목록은 navi-data 3.0.4 바이트코드로 확인(#63).
  */
 object TbtMapping {
 

@@ -4,7 +4,7 @@ import com.jij6303.sidecoach.feature.tips.CarTip
 import com.jij6303.sidecoach.state.UiMode
 
 /**
- * Gleo 명령 처리 (dev-architecture 7.2). Android에 의존하지 않도록 동작은 람다로 받는다.
+ * Gleo 명령 처리. Android에 의존하지 않도록 동작은 람다로 받는다.
  * 처리하지 않는 액션이면 null.
  */
 class GleoActionHandler(
@@ -64,7 +64,7 @@ class GleoActionHandler(
         // 주행 중에도 음성으로 답한다. 화면은 정차 중일 때만 연다.
         speakTip(tip)
         if (currentMode() == UiMode.PARKED_FULL) openTip(tip)
-        // 앱이 직접 말하므로 Gleo는 읽지 않게 한다 (dev-architecture 6.2, 이중 낭독 방지)
+        // 앱이 직접 말하므로 Gleo는 읽지 않게 한다 (이중 낭독 방지)
         return GleoResponse(
             functionName = GleoContract.ASK_CAR_TIP,
             status = GleoResponse.Status.SUCCESS,

@@ -4,7 +4,7 @@ import com.jij6303.sidecoach.data.vehicle.GearPosition
 import com.jij6303.sidecoach.state.DrivingSnapshot
 
 /**
- * 급제동 판정 (dev-architecture 4.2).
+ * 급제동 판정.
  *
  * 브레이크는 Boolean만 오므로(실측) 차속 감속도가 주 판정이고, 브레이크 눌림은 보조 조건이다.
  * 저속 제외 조건은 현재 속도가 아니라 **감속 시작 속도**에 적용한다. 현재 속도로 걸면 정지까지 가는

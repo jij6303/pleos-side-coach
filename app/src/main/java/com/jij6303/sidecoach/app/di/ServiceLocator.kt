@@ -112,7 +112,7 @@ object ServiceLocator {
 
     /**
      * 앱이 직접 오디오 포커스를 잡을지. TTS SDK가 내부에서 포커스를 잡는 것으로 확인되면 false로 바꾼다
-     * (dev-architecture 6.2 ❓, 중복 요청 방지).
+     * (중복 요청 방지).
      */
     var requestAudioFocus: Boolean = true
 
@@ -170,7 +170,7 @@ object ServiceLocator {
             ),
             naviEvents = naviEventSource.events,
             clock = clock,
-            // 프로세스가 다시 만들어져도 이어가도록 주기적으로 저장 (dev-architecture 9장, #31)
+            // 프로세스가 다시 만들어져도 이어가도록 주기적으로 저장 (#31)
             stateSink = { sessionStore.save(SessionState(it)) },
         )
         laneInput = LaneInput(coachingPipeline.lane, clock)

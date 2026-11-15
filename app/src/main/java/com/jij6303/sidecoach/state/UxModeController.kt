@@ -6,7 +6,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 
-/** 주행 규제 상태별 화면 모드 (dev-architecture 5.1). */
+/** 주행 규제 상태별 화면 모드. */
 enum class UiMode {
     /** 정차 + P단: 전체 UI (성적표, 도움말, 설정). */
     PARKED_FULL,

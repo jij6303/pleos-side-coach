@@ -63,7 +63,7 @@ class MainActivity : ComponentActivity() {
         )
     }
 
-    /** Gleo가 startActivity로 보낸 명령을 처리하고 응답을 보낸다 (dev-architecture 7.2). */
+    /** Gleo가 startActivity로 보낸 명령을 처리하고 응답을 보낸다. */
     private fun handleGleo(intent: Intent?) {
         val action = intent?.action ?: return
         if (action == Intent.ACTION_MAIN) return
@@ -121,7 +121,7 @@ class MainActivity : ComponentActivity() {
                 val report by pipeline.lastReport.collectAsStateWithLifecycle()
                 val demoRoute by ServiceLocator.naviEventSource.isDemo.collectAsStateWithLifecycle()
                 val lane by pipeline.lane.lane.collectAsStateWithLifecycle()
-                // 성적표는 정차(P단, 규제 없음)일 때만 보여준다 (dev-architecture 5.2)
+                // 성적표는 정차(P단, 규제 없음)일 때만 보여준다
                 val shownReport = report?.takeIf { uiMode == UiMode.PARKED_FULL }
                 closeReport.isEnabled = shownReport != null
                 val parking by ServiceLocator.parking.ui.collectAsStateWithLifecycle()
@@ -130,7 +130,7 @@ class MainActivity : ComponentActivity() {
                 val tip by openTip.collectAsStateWithLifecycle()
                 val shownTip = tip?.takeIf { uiMode == UiMode.PARKED_FULL && shownReport == null }
                 closeTips.isEnabled = shownTip != null
-                // P단을 벗어나면(주행 규제 등) 도움말을 닫는다 (dev-architecture 5.2)
+                // P단을 벗어나면(주행 규제 등) 도움말을 닫는다
                 LaunchedEffect(uiMode) {
                     if (uiMode != UiMode.PARKED_FULL) openTip.value = null
                 }

@@ -11,7 +11,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 
 /**
- * 코칭 메시지를 오디오 포커스 정책에 맞춰 음성으로 내보낸다 (dev-architecture 6.1).
+ * 코칭 메시지를 오디오 포커스 정책에 맞춰 음성으로 내보낸다.
  *
  * - 발화 직전에 포커스를 요청하고, 끝나면 돌려준다.
  * - 포커스를 못 얻거나 엔진이 준비되지 않았으면 [retryMs]마다 다시 시도하고, [ttlMs]가 지나면 버린다.

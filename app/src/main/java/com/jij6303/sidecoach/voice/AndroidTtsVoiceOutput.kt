@@ -15,7 +15,7 @@ import java.util.concurrent.atomic.AtomicLong
 import kotlin.coroutines.resume
 
 /**
- * Android 표준 TextToSpeech 구현 (dev-architecture 6.2).
+ * Android 표준 TextToSpeech 구현.
  * 발화 앞에 [leadSilenceMs]만큼 무음을 넣어 출력 경로가 열리는 동안 첫 음절이 잘리지 않게 한다.
  *
  * 기본 엔진 연결이 실패하면(기본 엔진 설정이 비어 있는 Pleos 에뮬레이터 실측) TTS_SERVICE를 제공하는

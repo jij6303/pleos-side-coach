@@ -3,7 +3,7 @@ package com.jij6303.sidecoach.feature.coach
 import com.jij6303.sidecoach.feature.report.Grade
 import com.jij6303.sidecoach.data.navi.SituationType
 
-/** 코칭 유형. [priority]가 클수록 먼저 말한다 (dev-architecture 4.5). */
+/** 코칭 유형. [priority]가 클수록 먼저 말한다. */
 enum class CoachType(val priority: Int, val high: Boolean) {
     HARD_BRAKE(priority = 50, high = true),
 
