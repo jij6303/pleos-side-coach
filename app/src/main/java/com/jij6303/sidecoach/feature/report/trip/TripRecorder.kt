@@ -1,6 +1,9 @@
 package com.jij6303.sidecoach.feature.report.trip
 
 import com.jij6303.sidecoach.feature.coach.detect.DetectionEvent
+import com.jij6303.sidecoach.feature.report.ReportGenerator
+import com.jij6303.sidecoach.feature.report.TripReport
+import com.jij6303.sidecoach.state.DrivingSnapshot
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -21,72 +24,79 @@ data class TripStats(
         get() = if (laneChanges == 0) null else signalledLaneChanges.toFloat() / laneChanges
 }
 
-/** 주행 중 사건을 집계한다. 성적표와 칭찬 트리거에 쓴다. */
-class TripRecorder(private val praiseStreak: Int = DEFAULT_PRAISE_STREAK) {
+/**
+ * 주행 기록. 주행 단위를 나누고([TripSession]: 시작·이어가기·끝), 그 동안의 판정 결과를 횟수로 쌓는다.
+ * 주행이 끝나면 [reports]에 넘겨 성적표를 만든다.
+ *
+ * 끝나는 스냅샷의 판정 결과(예: 움직이는 중 P)도 성적표에 넣어야 하므로 한 스냅샷은 두 번에 나눠 받는다:
+ * [onSnapshot]으로 주행 단위를 판단하고, 판정을 마친 뒤 [record]로 결과를 쌓으면서 끝났으면 성적표를 만든다.
+ */
+class TripRecorder(
+    val reports: ReportGenerator = ReportGenerator(),
+    private val session: TripSession = TripSession(),
+) {
+    /** 저장용: 주행 통계, 진행 중 주행(없으면 null), 아직 안 본 성적표. */
+    data class State(val stats: TripStats, val session: TripSession.State?, val pendingReport: TripReport?)
 
     private val _stats = MutableStateFlow(TripStats())
     val stats: StateFlow<TripStats> = _stats.asStateFlow()
 
-    private var streak = 0
+    /** 끝난 주행의 성적표. */
+    val lastReport: StateFlow<TripReport?> get() = reports.lastReport
 
-    /** 사건을 기록한다. 깜빡이를 켠 차선 변경이 [praiseStreak]회 연속되면 true(칭찬할 때). */
-    fun record(event: DetectionEvent): Boolean {
+    /** 이번 스냅샷에서 끝난 주행. [record]에서 성적표로 넘긴다. */
+    private var ended: TripMetrics? = null
+
+    /**
+     * 주행 단위 판단. 새 주행이면 통계를 비우고, 잠깐 P에 넣었다 다시 출발하면 통계는 이어가고 떠 있던 성적표만 닫는다 (#51).
+     */
+    fun onSnapshot(s: DrivingSnapshot): TripSession.Event? {
+        val event = session.onSnapshot(s)
+        when (event) {
+            TripSession.Event.Started -> {
+                _stats.value = TripStats()
+                reports.dismiss()
+            }
+            TripSession.Event.Resumed -> reports.dismiss()
+            is TripSession.Event.Ended -> ended = event.metrics
+            else -> Unit
+        }
+        return event
+    }
+
+    /** 판정 결과를 쌓는다. 이번 스냅샷에서 주행이 끝났으면 성적표를 만든다. */
+    fun record(events: List<DetectionEvent>, nowMs: Long) {
+        events.forEach(::count)
+        ended?.let { reports.publish(it, _stats.value, nowMs) }
+        ended = null
+    }
+
+    private fun count(event: DetectionEvent) {
         val s = _stats.value
-        return when (event) {
-            is DetectionEvent.LaneChange -> {
-                _stats.value = s.copy(
-                    laneChanges = s.laneChanges + 1,
-                    signalledLaneChanges = s.signalledLaneChanges + if (event.signalled) 1 else 0,
-                )
-                if (event.signalled) {
-                    streak++
-                    if (streak >= praiseStreak) {
-                        streak = 0
-                        true
-                    } else {
-                        false
-                    }
-                } else {
-                    streak = 0
-                    false
-                }
-            }
-            is DetectionEvent.HardBrake -> {
-                _stats.value = s.copy(hardBrakes = s.hardBrakes + 1)
-                false
-            }
-            is DetectionEvent.BlinkerLeftOn -> {
-                _stats.value = s.copy(blinkerLeftOn = s.blinkerLeftOn + 1)
-                false
-            }
-            is DetectionEvent.TurnTooFast -> {
-                _stats.value = s.copy(turnTooFast = s.turnTooFast + 1)
-                false
-            }
-            is DetectionEvent.GearShiftWhileMoving -> {
-                _stats.value = s.copy(gearShiftsMoving = s.gearShiftsMoving + 1)
-                false
-            }
+        _stats.value = when (event) {
+            is DetectionEvent.LaneChange -> s.copy(
+                laneChanges = s.laneChanges + 1,
+                signalledLaneChanges = s.signalledLaneChanges + if (event.signalled) 1 else 0,
+            )
+            is DetectionEvent.HardBrake -> s.copy(hardBrakes = s.hardBrakes + 1)
+            is DetectionEvent.BlinkerLeftOn -> s.copy(blinkerLeftOn = s.blinkerLeftOn + 1)
+            is DetectionEvent.TurnTooFast -> s.copy(turnTooFast = s.turnTooFast + 1)
+            is DetectionEvent.GearShiftWhileMoving -> s.copy(gearShiftsMoving = s.gearShiftsMoving + 1)
         }
     }
 
-    fun reset() {
-        _stats.value = TripStats()
-        streak = 0
+    /** 코칭을 멈출 때: 진행 중 주행을 끊는다. 통계와 성적표는 남긴다. */
+    fun stop() {
+        session.reset()
+        ended = null
     }
 
-    companion object {
-        /** 💭 깜빡이 켠 차선 변경 3회 연속이면 칭찬. */
-        const val DEFAULT_PRAISE_STREAK = 3
-    }
+    fun exportState(): State = State(_stats.value, session.exportState(), reports.exportState())
 
-    /** 저장용 상태: 통계 + 칭찬 연속 횟수. */
-    data class State(val stats: TripStats, val praiseStreak: Int)
-
-    fun exportState(): State = State(_stats.value, streak)
-
-    fun restore(state: State) {
+    /** 저장된 주행을 이어간다. 내려가 있던 동안은 주행 시간·거리에 넣지 않는다. */
+    fun restore(state: State, nowMs: Long) {
         _stats.value = state.stats
-        streak = state.praiseStreak
+        session.restore(state.session, nowMs)
+        reports.restore(state.pendingReport)
     }
 }

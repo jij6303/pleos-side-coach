@@ -1,15 +1,14 @@
 package com.jij6303.sidecoach.feature.coach
 
 import com.jij6303.sidecoach.data.navi.NaviEvent
-import com.jij6303.sidecoach.state.DrivingSnapshot
 import com.jij6303.sidecoach.feature.coach.detect.DetectionEvent
 import com.jij6303.sidecoach.feature.coach.detect.DetectorManager
-import com.jij6303.sidecoach.state.lane.CurrentLaneTracker
-import com.jij6303.sidecoach.feature.report.ReportGenerator
-import com.jij6303.sidecoach.feature.report.TripReport
 import com.jij6303.sidecoach.feature.coach.situation.SituationPreviewEngine
+import com.jij6303.sidecoach.feature.report.TripReport
 import com.jij6303.sidecoach.feature.report.trip.TripRecorder
 import com.jij6303.sidecoach.feature.report.trip.TripSession
+import com.jij6303.sidecoach.state.DrivingSnapshot
+import com.jij6303.sidecoach.state.lane.CurrentLaneTracker
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.BufferOverflow
@@ -22,47 +21,47 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.launch
 
 /**
- * 스냅샷 → 디텍터 매니저 → 기록·중재 → 코칭 메시지.
- * 내비 이벤트는 [previewEngine]이 상황 예고로 바꿔 중재자에 넣는다.
- * 스냅샷과 내비 이벤트는 한 흐름으로 합쳐 순서대로 처리한다 (디텍터·중재자 동시 접근 방지).
- * [tripSession]이 주행 시작(P 아닌 기어로 출발)을 알리면 통계를 초기화하고, 종료(P)를 알리면 성적표를 만든다.
- * P에 잠깐 넣었다 다시 출발하면(이어가기) 통계를 유지한다.
- * 음성 출력은 [messages]를 구독하는 VoiceCoach가 맡는다.
+ * 코칭 흐름의 조율자. 스냅샷과 내비 경로를 한 흐름으로 합쳐 순서대로 세 담당에게 나눠 준다.
+ * - [detectors]: 조작 판정 → 교정·칭찬 후보
+ * - [previewEngine]: 경로 위 남은 거리 → 상황 예고 후보
+ * - [recorder]: 주행 기록 → 주행이 끝나면 성적표 (요약 음성은 ReportGenerator가 VoiceCoach로 바로 보낸다)
  *
- * 상태 저장(#31): 코칭 중 [saveIntervalMs]마다, 성적표가 만들어질 때, 멈출 때 [stateSink]로 내보낸다.
- * 저장소는 app(SessionStore)이 맡고, 여기서는 자기 상태([State])만 내보낸다.
- * 처리·내보내기·복원은 같은 잠금 안에서 해 동시 접근을 막는다.
+ * 후보는 [arbiter]가 우선순위·간격으로 하나 골라 [messages]로 내보낸다.
+ * 한 흐름에서 순서대로 처리하므로 각 담당에 동시 접근이 없다. 처리·저장·복원은 같은 잠금 안에서 한다.
+ * 코칭 중 [saveIntervalMs]마다, 성적표가 나올 때, 멈출 때 [stateSink]로 상태를 내보낸다 (저장은 app의 SessionStore).
  */
 class CoachingPipeline(
     private val updates: Flow<DrivingSnapshot>,
     private val detectors: DetectorManager,
-    val arbiter: CoachingArbiter,
-    val recorder: TripRecorder,
-    private val tripSession: TripSession = TripSession(),
+    val arbiter: CoachingArbiter = CoachingArbiter(),
+    val recorder: TripRecorder = TripRecorder(),
     private val naviEvents: Flow<NaviEvent> = emptyFlow(),
     private val previewEngine: SituationPreviewEngine = SituationPreviewEngine(),
     /** 운전자가 알려준 차로(#69). 차선 변경으로 추적하고 상황 예고 문구에 쓴다. */
     val lane: CurrentLaneTracker = CurrentLaneTracker(),
+    /** 스냅샷과 같은 시계. 같은 차속이 이어져 스냅샷이 없을 때 예고 거리를 갱신하는 타이머에 쓴다. */
+    private val clock: () -> Long = System::currentTimeMillis,
+    private val tickMs: Long = 1_000,
     private val stateSink: (State) -> Unit = {},
     private val saveIntervalMs: Long = 5_000,
 ) {
-    /**
-     * 이어가기에 필요한 코칭 상태. [savedAtMs]는 스냅샷과 같은 시계(elapsedRealtime)다.
-     * 주행 통계, 발화 횟수, 진행 중 주행(없으면 null), 예고한 지점, 아직 안 본 성적표.
-     */
+    /** 이어가기에 필요한 코칭 상태. [savedAtMs]는 스냅샷과 같은 시계(elapsedRealtime)다. */
     data class State(
         val savedAtMs: Long,
-        val recorder: TripRecorder.State,
+        val trip: TripRecorder.State,
+        val praiseStreak: Int,
         val arbiter: CoachingArbiter.State,
-        val trip: TripSession.State?,
-        val announced: Map<String, Long>,
-        val pendingReport: TripReport?,
+        val preview: SituationPreviewEngine.State,
     )
+
+    /** 마지막으로 끝난 주행의 성적표. */
+    val lastReport: StateFlow<TripReport?> get() = recorder.lastReport
 
     private val lock = Any()
 
@@ -72,6 +71,7 @@ class CoachingPipeline(
     private sealed interface Input {
         data class Snapshot(val s: DrivingSnapshot) : Input
         data class Navi(val e: NaviEvent) : Input
+        data class Tick(val nowMs: Long) : Input
     }
 
     private val _messages = MutableSharedFlow<CoachMessage>(
@@ -82,11 +82,6 @@ class CoachingPipeline(
 
     private val _lastMessage = MutableStateFlow<CoachMessage?>(null)
     val lastMessage: StateFlow<CoachMessage?> = _lastMessage.asStateFlow()
-
-    private val _lastReport = MutableStateFlow<TripReport?>(null)
-
-    /** 마지막으로 끝난 주행의 성적표. 새 주행이 시작되거나 [dismissReport]하면 null. */
-    val lastReport: StateFlow<TripReport?> = _lastReport.asStateFlow()
 
     private var job: Job? = null
     val isRunning: Boolean get() = job?.isActive == true
@@ -100,10 +95,17 @@ class CoachingPipeline(
                     save()
                 }
             }
-            merge(updates.map { Input.Snapshot(it) }, naviEvents.map { Input.Navi(it) }).collect {
+            val ticks = flow {
+                while (true) {
+                    delay(tickMs)
+                    emit(Input.Tick(clock()))
+                }
+            }
+            merge(updates.map { Input.Snapshot(it) }, naviEvents.map { Input.Navi(it) }, ticks).collect {
                 when (it) {
                     is Input.Snapshot -> process(it.s)
                     is Input.Navi -> processNavi(it.e)
+                    is Input.Tick -> processTick(it.nowMs)
                 }
             }
         }
@@ -115,35 +117,32 @@ class CoachingPipeline(
         job = null
         save()
         detectors.reset()
-        tripSession.reset()
+        recorder.stop()
         previewEngine.reset()
         lane.clear()
     }
 
     fun dismissReport() {
-        _lastReport.value = null
+        recorder.reports.dismiss()
         save()
     }
 
-    /** 지금 상태. 진행 중 주행이 없으면 trip은 null. */
     fun exportState(): State = synchronized(lock) {
         State(
             savedAtMs = lastInputMs,
-            recorder = recorder.exportState(),
+            trip = recorder.exportState(),
+            praiseStreak = detectors.exportState(),
             arbiter = arbiter.exportState(),
-            trip = tripSession.exportState(),
-            announced = previewEngine.exportState(),
-            pendingReport = _lastReport.value,
+            preview = previewEngine.exportState(),
         )
     }
 
     /** 저장된 상태에서 이어간다. [nowMs]는 지금 시각(스냅샷과 같은 시계). */
     fun restore(state: State, nowMs: Long) = synchronized(lock) {
-        recorder.restore(state.recorder)
+        recorder.restore(state.trip, nowMs)
+        detectors.restore(state.praiseStreak)
         arbiter.restore(state.arbiter)
-        tripSession.restore(state.trip, nowMs)
-        previewEngine.restore(state.announced)
-        _lastReport.value = state.pendingReport
+        previewEngine.restore(state.preview, nowMs)
         lastInputMs = nowMs
     }
 
@@ -152,86 +151,61 @@ class CoachingPipeline(
         stateSink(exportState())
     }
 
-    /** 새 주행 시작: 통계·발화 횟수 초기화. */
-    fun resetTrip() {
+    /** 새 주행: 판정 진행, 발화 횟수, 예고한 지점을 비운다 (통계는 [recorder]가 비운다). */
+    private fun resetForNewTrip() {
         detectors.reset()
         arbiter.reset()
-        recorder.reset()
         previewEngine.reset()
         _lastMessage.value = null
-        _lastReport.value = null
     }
 
     /** 스냅샷 하나를 처리하고 이번에 말하기로 정한 메시지를 돌려준다. */
     internal fun process(s: DrivingSnapshot): CoachMessage? = synchronized(lock) {
         lastInputMs = s.timestampMs
-        val tripEvent = tripSession.onSnapshot(s)
-        when (tripEvent) {
-            TripSession.Event.Started -> resetTrip()
-            // 잠깐 P에 넣었다 다시 출발: 통계는 이어가고 떠 있던 성적표만 닫는다 (#51)
-            TripSession.Event.Resumed -> _lastReport.value = null
-            else -> Unit
-        }
+        val tripEvent = recorder.onSnapshot(s)
+        if (tripEvent == TripSession.Event.Started) resetForNewTrip()
 
         lane.onSnapshot(s)
-        val produced = mutableListOf<CoachMessage>()
-        for (event in detectors.onSnapshot(s)) {
-            if (event is DetectionEvent.LaneChange) lane.onLaneChange(event.direction)
-            val praise = recorder.record(event)
-            toMessages(event, praise).forEach { produced += it }
-        }
-
-        val ended = tripEvent is TripSession.Event.Ended
-        // 움직이는 중 P에 넣으면 같은 순간 주행이 끝난다. 이 경고는 중재자를 거치지 않고 성적표보다 먼저 바로 말한다
-        // (중재자에도 넣으면 다음 스냅샷에서 한 번 더 말해 성적표 음성을 밀어낸다, #61 실측).
-        val immediate = produced.firstOrNull { ended && it.type == CoachType.GEAR_SHIFT_MOVING }
-        produced.filter { it !== immediate }.forEach(arbiter::submit)
+        val detection = detectors.onSnapshot(s)
+        detection.events.filterIsInstance<DetectionEvent.LaneChange>().forEach { lane.onLaneChange(it.direction) }
+        val candidates = detection.candidates + previewEngine.onSnapshot(s, lane.current(s.timestampMs))
 
         if (tripEvent is TripSession.Event.Ended) {
-            immediate?.let {
-                _lastMessage.value = it
-                _messages.tryEmit(it)
-            }
-            val report = ReportGenerator.generate(tripEvent.metrics, recorder.stats.value)
-            _lastReport.value = report
-            // 성적표 요약은 중재자를 거치지 않고 바로 음성으로 보낸다 (주행이 끝나 다른 코칭과 겹치지 않음)
-            _messages.tryEmit(CoachMessage(CoachType.REPORT, report.announcement, s.timestampMs))
+            // 움직이는 중 P에 넣으면 같은 순간 주행이 끝난다. 이 경고는 중재자를 거치지 않고 성적표보다 먼저 바로 말한다
+            // (중재자에도 넣으면 다음 스냅샷에서 한 번 더 말해 성적표 음성을 밀어낸다, #61 실측).
+            val gearWarning = candidates.firstOrNull { it.type == CoachType.GEAR_SHIFT_MOVING }
+            candidates.filter { it !== gearWarning }.forEach(arbiter::submit)
+            gearWarning?.let(::emit)
+            recorder.record(detection.events, s.timestampMs) // 성적표를 만들고 요약 음성을 보낸다
             stateSink(exportState()) // 성적표는 바로 저장 (보기 전에 프로세스가 내려가도 남도록)
             return null
         }
+        recorder.record(detection.events, s.timestampMs)
+        candidates.forEach(arbiter::submit)
         return speakNext(s.timestampMs)
     }
 
-    /** 내비 이벤트 하나를 처리하고 이번에 말하기로 정한 메시지를 돌려준다. */
+    /** 내비 이벤트(경로 시작·끝) 하나를 처리한다. */
     internal fun processNavi(e: NaviEvent): CoachMessage? = synchronized(lock) {
         lastInputMs = e.timestampMs
-        previewEngine.onEvent(e, lane.current(e.timestampMs))?.let(arbiter::submit)
+        previewEngine.onNavi(e)
         return speakNext(e.timestampMs)
+    }
+
+    /** 타이머: 스냅샷이 없어도 예고 거리를 갱신하고, 간격 때문에 기다리던 메시지를 내보낸다. */
+    internal fun processTick(nowMs: Long): CoachMessage? = synchronized(lock) {
+        previewEngine.onTick(nowMs, lane.current(nowMs)).forEach(arbiter::submit)
+        return speakNext(nowMs)
     }
 
     private fun speakNext(nowMs: Long): CoachMessage? {
         val message = arbiter.next(nowMs) ?: return null
-        _lastMessage.value = message
-        _messages.tryEmit(message)
+        emit(message)
         return message
     }
 
-    private fun toMessages(event: DetectionEvent, praise: Boolean): List<CoachMessage> {
-        val ts = event.timestampMs
-        return when (event) {
-            is DetectionEvent.LaneChange -> when {
-                !event.signalled -> listOf(CoachMessage(CoachType.BLINKER_OMISSION, MessageCatalog.blinkerOmission(), ts))
-                praise -> listOf(CoachMessage(CoachType.PRAISE, MessageCatalog.praise(), ts))
-                else -> emptyList()
-            }
-            is DetectionEvent.HardBrake ->
-                listOf(CoachMessage(CoachType.HARD_BRAKE, MessageCatalog.hardBrake(), ts))
-            is DetectionEvent.BlinkerLeftOn ->
-                listOf(CoachMessage(CoachType.BLINKER_LEFT_ON, MessageCatalog.blinkerLeftOn(), ts))
-            is DetectionEvent.TurnTooFast ->
-                listOf(CoachMessage(CoachType.TURN_SPEED, MessageCatalog.turnSpeed(), ts))
-            is DetectionEvent.GearShiftWhileMoving ->
-                listOf(CoachMessage(CoachType.GEAR_SHIFT_MOVING, MessageCatalog.gearShiftMoving(), ts))
-        }
+    private fun emit(message: CoachMessage) {
+        _lastMessage.value = message
+        _messages.tryEmit(message)
     }
 }

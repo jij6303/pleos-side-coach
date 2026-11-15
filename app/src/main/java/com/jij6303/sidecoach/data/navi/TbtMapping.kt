@@ -30,4 +30,20 @@ object TbtMapping {
         SituationType.LANE_KEEP_RIGHT -> SituationType.CHAIN_KEEP_RIGHT
         else -> null
     }
+
+    /** TBT 한 항목. [turnTypeName]은 SDK `TurnType`의 이름, [distanceM]은 이전 지점부터의 구간 거리(#63 실측). */
+    data class Segment(val turnTypeName: String, val distanceM: Double, val description: String)
+
+    /**
+     * TBT 목록 → 경로. 구간 거리를 누적해 지점 위치를 만들고, 안내하지 않는 유형은 뺀다.
+     * 키에 받은 시각을 넣는다. 세션 복원으로 "예고한 지점"이 남아 있어도 새 목록의 같은 순번과 겹치지 않게 (#67 실측).
+     */
+    fun route(segments: List<Segment>, receivedAtMs: Long): NaviRoute {
+        var at = 0.0
+        val points = segments.mapIndexedNotNull { i, seg ->
+            at += seg.distanceM
+            turn(seg.turnTypeName)?.let { RoutePoint("tbt-$receivedAtMs-$i", it, at.toFloat()) }
+        }
+        return NaviRoute(id = "tbt-$receivedAtMs", points = points)
+    }
 }

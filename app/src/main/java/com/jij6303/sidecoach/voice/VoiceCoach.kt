@@ -1,7 +1,7 @@
-package com.jij6303.sidecoach.feature.coach
+package com.jij6303.sidecoach.voice
 
-import com.jij6303.sidecoach.voice.AudioFocus
-import com.jij6303.sidecoach.voice.VoiceOutput
+import com.jij6303.sidecoach.feature.coach.CoachMessage
+import com.jij6303.sidecoach.feature.coach.CoachType
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.BufferOverflow

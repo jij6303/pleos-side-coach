@@ -4,6 +4,8 @@ import com.jij6303.sidecoach.data.navi.FakeRouteNaviEventSource
 import com.jij6303.sidecoach.feature.coach.CoachType
 import com.jij6303.sidecoach.feature.coach.CoachingArbiter
 import com.jij6303.sidecoach.feature.coach.CoachingPipeline
+import com.jij6303.sidecoach.feature.coach.situation.RouteProgress
+import com.jij6303.sidecoach.feature.coach.situation.SituationPreviewEngine
 import com.jij6303.sidecoach.feature.report.Grade
 import com.jij6303.sidecoach.feature.report.NextTask
 import com.jij6303.sidecoach.feature.report.TripReport
@@ -23,41 +25,14 @@ object SessionStateCodec {
         val s = state.coaching
         put("v", VERSION)
         put("savedAt", s.savedAtMs)
-        put("stats", stats(s.recorder.stats))
-        put("praiseStreak", s.recorder.praiseStreak)
+        put("stats", stats(s.trip.stats))
+        put("praiseStreak", s.praiseStreak)
         put("spoken", JSONObject().apply { s.arbiter.spokenCounts.forEach { (k, v) -> put(k.name, v) } })
         s.arbiter.lastSpokenMs?.let { put("lastSpoken", it) }
-        s.trip?.let { t ->
-            put("trip", JSONObject().apply {
-                put("startedAt", t.startedAtMs)
-                put("lastSpeed", t.lastSpeedKmh.toDouble())
-                put("movingMs", t.movingMs)
-                put("distanceKm", t.distanceKm)
-                put("maxSpeed", t.maxSpeedKmh.toDouble())
-                t.pausedAtMs?.let { put("pausedAt", it) }
-            })
-        }
-        put("announced", JSONObject().apply { s.announced.forEach { (k, v) -> put(k, v) } })
-        s.pendingReport?.let { r ->
-            put("report", JSONObject().apply {
-                put("startedAt", r.metrics.startedAtMs)
-                put("endedAt", r.metrics.endedAtMs)
-                put("movingMs", r.metrics.movingMs)
-                put("distanceKm", r.metrics.distanceKm.toDouble())
-                put("maxSpeed", r.metrics.maxSpeedKmh.toDouble())
-                put("stats", stats(r.stats))
-                put("score", r.score)
-                put("grade", r.grade.name)
-                put("nextTask", r.nextTask.name)
-            })
-        }
-        state.route?.let { rt ->
-            put("route", JSONObject().apply {
-                put("odometerM", rt.odometerM)
-                put("speed", rt.speedKmh.toDouble())
-                put("lastSent", JSONObject().apply { rt.lastSent.forEach { (k, v) -> put(k, v) } })
-            })
-        }
+        s.trip.session?.let { put("trip", session(it)) }
+        put("announced", JSONObject().apply { s.preview.announced.forEach { (k, v) -> put(k, v) } })
+        s.trip.pendingReport?.let { put("report", report(it)) }
+        s.preview.route?.let { put("route", route(it)) }
     }.toString()
 
     /** 읽지 못하면 null (손상·다른 버전). */
@@ -66,58 +41,88 @@ object SessionStateCodec {
         return runCatching {
             val o = JSONObject(json)
             if (o.getInt("v") != VERSION) return null
-            val coaching = CoachingPipeline.State(
-                savedAtMs = o.getLong("savedAt"),
-                recorder = TripRecorder.State(stats(o.getJSONObject("stats")), o.getInt("praiseStreak")),
-                arbiter = CoachingArbiter.State(
-                    spokenCounts = o.getJSONObject("spoken").let { sp ->
-                        sp.keys().asSequence().mapNotNull { k ->
-                            CoachType.entries.firstOrNull { it.name == k }?.let { it to sp.getInt(k) }
-                        }.toMap()
-                    },
-                    lastSpokenMs = if (o.has("lastSpoken")) o.getLong("lastSpoken") else null,
+            SessionState(
+                CoachingPipeline.State(
+                    savedAtMs = o.getLong("savedAt"),
+                    trip = TripRecorder.State(
+                        stats = stats(o.getJSONObject("stats")),
+                        session = o.optJSONObject("trip")?.let(::session),
+                        pendingReport = o.optJSONObject("report")?.let(::report),
+                    ),
+                    praiseStreak = o.getInt("praiseStreak"),
+                    arbiter = CoachingArbiter.State(
+                        spokenCounts = o.getJSONObject("spoken").let { sp ->
+                            sp.keys().asSequence().mapNotNull { k ->
+                                CoachType.entries.firstOrNull { it.name == k }?.let { it to sp.getInt(k) }
+                            }.toMap()
+                        },
+                        lastSpokenMs = if (o.has("lastSpoken")) o.getLong("lastSpoken") else null,
+                    ),
+                    preview = SituationPreviewEngine.State(
+                        announced = o.getJSONObject("announced").let { a -> a.keys().asSequence().associateWith { a.getLong(it) } },
+                        route = o.optJSONObject("route")?.let(::route),
+                    ),
                 ),
-                trip = o.optJSONObject("trip")?.let { t ->
-                    TripSession.State(
-                        startedAtMs = t.getLong("startedAt"),
-                        lastSpeedKmh = t.getDouble("lastSpeed").toFloat(),
-                        movingMs = t.getLong("movingMs"),
-                        distanceKm = t.getDouble("distanceKm"),
-                        maxSpeedKmh = t.getDouble("maxSpeed").toFloat(),
-                        pausedAtMs = if (t.has("pausedAt")) t.getLong("pausedAt") else null,
-                    )
-                },
-                announced = o.getJSONObject("announced").let { a ->
-                    a.keys().asSequence().associateWith { a.getLong(it) }
-                },
-                pendingReport = o.optJSONObject("report")?.let { r ->
-                    TripReport(
-                        metrics = TripMetrics(
-                            startedAtMs = r.getLong("startedAt"),
-                            endedAtMs = r.getLong("endedAt"),
-                            movingMs = r.getLong("movingMs"),
-                            distanceKm = r.getDouble("distanceKm").toFloat(),
-                            maxSpeedKmh = r.getDouble("maxSpeed").toFloat(),
-                        ),
-                        stats = stats(r.getJSONObject("stats")),
-                        score = r.getInt("score"),
-                        grade = Grade.valueOf(r.getString("grade")),
-                        nextTask = NextTask.valueOf(r.getString("nextTask")),
-                    )
-                },
             )
-            val route = o.optJSONObject("route")?.let { rt ->
-                FakeRouteNaviEventSource.RouteState(
-                    odometerM = rt.getDouble("odometerM"),
-                    speedKmh = rt.getDouble("speed").toFloat(),
-                    lastSent = rt.getJSONObject("lastSent").let { ls ->
-                        ls.keys().asSequence().associateWith { ls.getInt(it) }
-                    },
-                )
-            }
-            SessionState(coaching, route)
         }.getOrNull()
     }
+
+    private fun session(t: TripSession.State) = JSONObject().apply {
+        put("startedAt", t.startedAtMs)
+        put("lastSpeed", t.lastSpeedKmh.toDouble())
+        put("movingMs", t.movingMs)
+        put("distanceKm", t.distanceKm)
+        put("maxSpeed", t.maxSpeedKmh.toDouble())
+        t.pausedAtMs?.let { put("pausedAt", it) }
+    }
+
+    private fun session(t: JSONObject) = TripSession.State(
+        startedAtMs = t.getLong("startedAt"),
+        lastSpeedKmh = t.getDouble("lastSpeed").toFloat(),
+        movingMs = t.getLong("movingMs"),
+        distanceKm = t.getDouble("distanceKm"),
+        maxSpeedKmh = t.getDouble("maxSpeed").toFloat(),
+        pausedAtMs = if (t.has("pausedAt")) t.getLong("pausedAt") else null,
+    )
+
+    private fun report(r: TripReport) = JSONObject().apply {
+        put("startedAt", r.metrics.startedAtMs)
+        put("endedAt", r.metrics.endedAtMs)
+        put("movingMs", r.metrics.movingMs)
+        put("distanceKm", r.metrics.distanceKm.toDouble())
+        put("maxSpeed", r.metrics.maxSpeedKmh.toDouble())
+        put("stats", stats(r.stats))
+        put("score", r.score)
+        put("grade", r.grade.name)
+        put("nextTask", r.nextTask.name)
+    }
+
+    private fun report(r: JSONObject) = TripReport(
+        metrics = TripMetrics(
+            startedAtMs = r.getLong("startedAt"),
+            endedAtMs = r.getLong("endedAt"),
+            movingMs = r.getLong("movingMs"),
+            distanceKm = r.getDouble("distanceKm").toFloat(),
+            maxSpeedKmh = r.getDouble("maxSpeed").toFloat(),
+        ),
+        stats = stats(r.getJSONObject("stats")),
+        score = r.getInt("score"),
+        grade = Grade.valueOf(r.getString("grade")),
+        nextTask = NextTask.valueOf(r.getString("nextTask")),
+    )
+
+    /** 경로 위치. "odometerM"은 이 경로를 따라온 거리. id가 없는 예전 저장분은 시연 경로였다. */
+    private fun route(rt: RouteProgress.State) = JSONObject().apply {
+        put("id", rt.routeId)
+        put("odometerM", rt.travelledM)
+        put("speed", rt.speedKmh.toDouble())
+    }
+
+    private fun route(rt: JSONObject) = RouteProgress.State(
+        routeId = rt.optString("id", FakeRouteNaviEventSource.DEMO_ROUTE.id),
+        travelledM = rt.getDouble("odometerM"),
+        speedKmh = rt.getDouble("speed").toFloat(),
+    )
 
     private fun stats(s: TripStats) = JSONObject().apply {
         put("laneChanges", s.laneChanges)
