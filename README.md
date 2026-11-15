@@ -37,6 +37,7 @@
 | 앱 코드 | `app/src/main/java/com/jij6303/sidecoach/` |
 | 녹음 음성 클립 | `app/src/main/res/raw/` |
 | Gleo 음성 명령 정의 | `app/src/main/assets/schema.json` |
+| 권한, 서비스, Gleo 명령 수신 설정 | `app/src/main/AndroidManifest.xml` |
 | 시연 자동 재생, 음성 클립 생성 | `scripts/` |
 | GitHub 작업 봇 (이슈·브랜치·PR) | `github/` |
 | Claude 작업 규칙과 참고 자료 | `CLAUDE.md`, `.claude/` |
