@@ -33,6 +33,7 @@ Pleos Connect Emulator v2.1.0, Vehicle SDK 2.3.2, Vehicle Service 2.3.22, 공식
 | **주행 규제** | 실측(#17): 문서의 `cmd hmg_car_service ... driving_regulation` 명령은 **이 에뮬레이터에 없음**(`Can't find service`). 규제는 콘솔 기어로 바뀜: P → parked(DO 불필요, `0x0`), 그 외 기어 → idling/moving(DO 필요, `0x50` = NO_VIDEO \| NO_SETUP). `dumpsys car_service --services CarUxRestrictionsManagerService`로 상태별 설정 확인 가능 | T8은 콘솔 기어 P↔D로 테스트. 에뮬레이터에서는 IDLE_LIMITED(규제 없음 + P 아님)가 나오지 않음 |
 | **Foreground Service** | 실측(#17): `specialUse` 타입 FGS 시작·유지 확인(`types=40000000`). Back으로 앱을 숨긴 상태에서도 급제동 음성 코칭 정상 | 코칭 수명은 `CoachingService`가 관리 |
 | **시스템 UI** | 깜빡이를 켜면 **시스템 측후방 카메라 팝업**이 앱 화면 위에 뜸. 실측(#27): `ai.umos.car.evs` 창, 좌·우 모두 앱 창 기준 왼쪽 위 (0,0)~(754,424)dp, 깜빡이를 끄면 사라짐 (앱 창은 1682×1210dp, 160dpi) | 주행 중 화면이 가려질 수 있음 → 음성 중심 코칭 설계를 유지. 튜토리얼은 깜빡이가 켜져 있는 동안 미션 카드를 팝업 아래로 내림(#27)<br>**실측(#37): 기어 R이면 `ai.umos.car.evs/.CarEvsCameraPreviewActivity`가 앱 창 전체를 덮고 포커스를 가져감**(에뮬레이터는 빈 화면) → 주차 코치는 화면 입력 없이 음성·차량 신호만으로 진행 |
+| **NaviHelper (#63)** | NaviHelper 3.0.5(+ navi-data 3.0.4), AAR `minSdkVersion=23`. 에뮬레이터 기본 내비 `ai.umos.maps.android.navigation.app`, 서비스 `ai.pleos.playground.service.navi` 존재. 필드·권한은 AAR 바이트코드(`javap`)로 확인<br>**리스너**: NAVI 권한 없이 `initialize()`·`addListener()` 성공. 경로 없을 때도 `onCurrentRoadSpeedLimit`(약 1초 주기, 0) 수신. 경로 안내 시작 시 `onRouteStarted` → `onNavigationStatus(ROUTE_DRIVE)` → `onRouteStateInfo` → `onDrivingInfo` → `onTBTInfo` 순서로 옴<br>**중간 등록**: 경로 안내 중에 리스너를 등록하면 TBT가 다시 오지 않음 → 늦게 켠 경우 `getTBTInfo()` 필요<br>**get 계열 권한**: `getTBTInfo`·`getCurrentLocationInfo`·`getRouteStateInfo`·`getDestinationInfo` 등 → 권한 없으면 `SecurityException: Permission [pleos.car.permission.NAVI_ROUTE] is required`(실측). `requestRoute`·`addWaypoint`·`cancelRoute`·`changeRouteOption`·`requestReRoute` → `NAVI_ROUTE_SEARCH`, `requestNavigationScreen` → `NAVI_CUSTOM_MAP`(바이트코드)<br>**`TBTInfo(type: TurnType, distance: Double, description: String)`**: 경로 전체 회전 목록이 한 번에 옴. 예) 2.5km 경로 → 6개 `TURN_LEFT 80 "기업지원허브 방면"`, `TURN_LEFT 390`, `TURN_LEFT 1500`, `TURN_RIGHT 150`, `TURN_RIGHT 320`, `TURN_ARRIVE 8`. **distance는 이전 지점부터의 구간 거리**(합 2448m ≈ 경로 2500m). id 필드 없음<br>**차로 정보 없음**: navi-data 전체에 차로(lane) 관련 클래스·필드 없음. 내비 엔진 로그에는 `laneid`가 있지만 SDK로 노출되지 않음<br>`CurrentLocationInfo(latitude, longitude, heading, address, routeId, currentRouteIndex)`(NAVI_ROUTE 필요), `CautionPoint(id, type: CautionPointType, remainDistance: Int)`(SCHOOL_ZONE·SPEED_BUMP 등, 이번 경로에선 미수신)<br>**❓ 주행 중 갱신**: 에뮬레이터 내비 위치가 움직이지 않아(콘솔 차속은 GPS와 무관, `adb emu geo fix` 미반영) TBT·남은 거리 갱신 여부는 확인 못 함 | 차로 구성은 SDK에 없으므로 **차로 DB가 필요**. TBT로 "다음 회전 종류 + 방면"은 알 수 있음. 남은 거리는 경로 시작 시점 TBT 구간 거리에서 콘솔 차속 적분으로 계산(FakeRoute와 같은 방식)하는 것이 권한 없이 가능한 경로. 정확한 진행 위치(`currentRouteIndex`)와 늦은 등록 대응은 `NAVI_ROUTE` 필요 → **권한 승인 여부 확인 필요** |
 | **R 기어 신호** | 실측(#37): 콘솔 R + ACCEL로 차속이 오름(양수, 1km/h 단위). BRAKE 버튼은 누르는 동안만 `BrakePedalStatus=true`, 멈춘 뒤 떼면 `false`. 콘솔 차는 정지 후 브레이크 없이 0을 유지 | 기준점 판정은 브레이크 없이 "움직인 뒤 정지"로. 후진 중에는 급제동 판정 안 함 |
 
 ### SDK 제공 상태 (Pleos Playground, 2026-11-09)
@@ -229,8 +230,8 @@ dependencies {
 | 기어 | `CarPropertyManager` + `VehiclePropertyIds.GEAR_SELECTION` | `android.car.permission.CAR_POWERTRAIN` 🔶 | 서비스 수명 동안 상시 (P단 감지용) | 🔶 (Pleos 정책상 표준 데이터는 AAOS API 권장 ✅) |
 | 차속 | `CarPropertyManager` + `VehiclePropertyIds.PERF_VEHICLE_SPEED` (m/s) | `android.car.permission.CAR_SPEED` 🔶 | 세션 동안 | ✅ FAQ에서 클러스터와 같은 값이라고 안내, 🔶 권한 |
 | 주행 규제 | `CarUxRestrictionsManager.registerListener()`, `getCurrentCarUxRestrictions()`, `isRequiresDistractionOptimization()`, `getActiveRestrictions()` | – | 앱 프로세스 수명 동안 | ✅ |
-| 내비 이벤트 | `NaviHelper.initialize()` → `addListener(NaviHelperEventListener)` → `removeListener()` → `release()` | ❓ (declaring-permissions 페이지 미확인) | 세션 시작 / 종료 | ✅ 흐름 |
-| └ 콜백 | `onTBTInfo`, `onCautionPointInfo`, `onCurrentRoadSpeedLimit`, `onCameraAlert`, `onDrivingInfo`, `onRouteStateInfo`, `onNavigationStatus` | | | ✅ 이름, ❓ 데이터 클래스(`TBTInfo`, `CautionPoint` 등) 필드 |
+| 내비 이벤트 | `NaviHelper(context)` → `initialize()` 또는 `initialize(onSuccess, onError)` → `addListener(NaviHelperEventListener)` → `removeListener()` → `release()`. 좌표 `ai.pleos.playground:NaviHelper:3.0.5` | 리스너는 권한 없이 수신 ✅ 실측(#63). `get*Info()`는 `NAVI_ROUTE` ✅ 실측 | 세션 시작 / 종료 | ✅ |
+| └ 콜백 | `onTBTInfo(List<TBTInfo>)`, `onCautionPointInfo(List<CautionPoint>)`, `onCurrentRoadSpeedLimit(Int)`, `onCameraAlert(List<CameraAlert>)`, `onDrivingInfo(DrivingInfo)`, `onRouteStateInfo(RouteStateInfo)`, `onNavigationStatus(NavigationStatus)`, `onRouteStarted(RouteStartInfo)` 등 (모두 default 메서드) | | | ✅ 필드는 0.1 NaviHelper 행 |
 | 위치 | `FusedLocation.isSupported()` → `initialize()` → `registerFusedLocationCallback()` / `unregisterFusedLocationCallback()` → `release()` | `pleos.car.permission.FUSED_LOCATION` | 세션 동안 (지원되는 차량만) | ✅, ❓ `LocationData` 필드명 |
 | TTS | `ai.pleos.playground.tts.TextToSpeech(ctx, Mode.ON_DEVICE)` → `initialize()` → `addEventListener()` → `setLocale()` → `speak()` / `stop()` → `removeEventListener()` → `release()` | ❓ | 서비스 수명 | ✅ 흐름, ❓ `speak` 시그니처, 포커스 처리 주체 |
 | STT | `ai.pleos.playground.stt.SpeechToText(ctx, Mode.ON_DEVICE)` → `initialize()` → `addListener(ResultListener)` → `request()` / `stop()` → `release()` | ❓ (마이크 권한 `RECORD_AUDIO` 🔶 추정) | 질문 버튼이나 Gleo 호출 시 단발 | ✅ 흐름 |
@@ -368,7 +369,7 @@ if limit != null and s.speedKmh > limit + 5 (💭 허용 오차) for >= 3 s (�
 2. `SituationDb`(assets/situations.json: `{id, type, lat, lon, headingRange}`, 💭 공공 지도 데이터에서 직접 구축) + FusedLocation 위치
 
 ```
-on NaviEvent.Tbt(t):                        // ❓ TBTInfo에 안내 유형과 남은 거리가 있는지 확인
+on NaviEvent.Tbt(t):                        // ✅(#63) TBTInfo(type: TurnType, distance: 구간 거리, description). 남은 거리는 직접 계산, id 없음
    type = mapTbtToSituation(t)               // 회전교차로, 합류(진입 램프) 등. 매핑이 안 되면 무시
    if type != null: candidate(type, distance = t.remainDistance, key = t.id or (type, pointLatLon))
 on NaviEvent.CautionPoint(c):               // ❓ 어린이보호구역 등 유형 필드 확인
@@ -899,10 +900,10 @@ object GleoCallbackSender {
 2. ~~TurnSignal 상태 enum 값~~ ✅ 완료 (OFF/LEFT/RIGHT, 비상등은 OFF로 보고)
 3. ~~BrakePedalStatus 값 형태~~ ✅ 완료 (Boolean)
 4. ~~Virtual Console 차속 변경~~ ✅ 완료 (D + ACCEL)
-5. NaviHelper Gradle 좌표와 권한 (TTS·STT·FusedLocation은 "준비 중" → Android 표준 API로 대체)
+5. ~~NaviHelper Gradle 좌표와 권한~~ ✅ 완료(#63). `ai.pleos.playground:NaviHelper:3.0.5`, 리스너는 권한 불필요, `get*Info()`는 `NAVI_ROUTE`. 남은 것: `NAVI_ROUTE` 승인 가능 여부 (TTS·STT·FusedLocation은 "준비 중" → Android 표준 API로 대체)
 5-1. ~~우리 앱 첫 테스트: AAOS 프로퍼티 읽기~~ ✅ 완료(#7). `GEAR_SELECTION`·`PARKING_BRAKE_ON`은 `CAR_POWERTRAIN`(normal)으로, `PERF_VEHICLE_SPEED`는 `CAR_SPEED`(dangerous, 위치 권한 그룹) 런타임 승인 후 수신. **`HAZARD_LIGHTS_STATE`는 수신 불가**(`CAR_EXTERIOR_LIGHTS`가 signature|privileged). 남은 것: 비상등 대체 경로, 튜토리얼 HAZARD_LIGHT 미션 유지 여부
 6. TTS SDK가 오디오 포커스를 직접 잡는지, 선행 무음 옵션이 있는지
-7. `TBTInfo`, `CautionPoint`, `SpeedLimit`의 필드 구성 (상황 유형과 거리)
+7. ~~`TBTInfo`, `CautionPoint`, `SpeedLimit`의 필드 구성~~ ✅ 완료(#63). 0.1 NaviHelper 행 참고. **차로 정보는 SDK에 없음**. 남은 것: 주행 중 TBT 갱신 여부(에뮬레이터 위치 이동 방법 필요)
 8. Gleo: service 액션 Receiver 수신 여부, Callback 대상 패키지, 에뮬레이터에 Gleo가 있는지
 9. DO 선언 메타데이터 키 (AAOS 표준 `distractionOptimized`를 써도 되는지)
 10. Suspend 감지 신호 (`IGNITION_STATE` 사용 가능 여부)
