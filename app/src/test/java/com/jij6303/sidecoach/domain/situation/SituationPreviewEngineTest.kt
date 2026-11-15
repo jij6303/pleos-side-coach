@@ -43,6 +43,14 @@ class SituationPreviewEngineTest {
     }
 
     @Test
+    fun `연속 회전은 앞 회전 150~30m에서 예고한다`() {
+        fun chain(d: Float) = NaviEvent.Situation("t3-chain", SituationType.CHAIN_RIGHT_TURN, d, 0)
+        assertNull(engine.onEvent(chain(200f)))
+        assertEquals(MessageCatalog.preview(SituationType.CHAIN_RIGHT_TURN), engine.onEvent(chain(140f))?.text)
+        assertNull(SituationPreviewEngine().onEvent(chain(20f))) // 회전 직전이면 늦음
+    }
+
+    @Test
     fun `다른 지점은 각각 예고한다`() {
         assertNotNull(engine.onEvent(ev(250f, key = "a")))
         assertNotNull(engine.onEvent(ev(250f, key = "b")))

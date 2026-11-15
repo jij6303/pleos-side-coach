@@ -41,7 +41,27 @@ class TbtRouteTrackerTest {
         val e = tracker.advance(10_000).situations() // 100 m 이동 → 첫 회전(80 m) 지남
         assertEquals(1, e.size)
         assertEquals(370f, e[0].distanceM, 0.01f) // 470 - 100
-        assertEquals("tbt-1-1", e[0].key)
+        assertEquals("tbt-0-1", e[0].key)
+    }
+
+    @Test
+    fun `다음 회전 바로 뒤에 회전이 있으면 앞 회전까지 남은 거리로 연속 회전을 함께 보낸다`() {
+        tracker.setRoute(measured, 0)
+        tracker.onSnapshot(snap(0, 36f))
+        // 1850 m 이동: 세 번째 좌회전(1970 m)까지 120 m, 그 뒤 150 m에 우회전(2120 m)
+        val e = tracker.advance(185_000).situations()
+        assertEquals(listOf(SituationType.LANE_LEFT_TURN, SituationType.CHAIN_RIGHT_TURN), e.map { it.type })
+        assertEquals(listOf(120f, 120f), e.map { it.distanceM })
+        assertEquals("tbt-0-3-chain", e[1].key)
+    }
+
+    @Test
+    fun `뒤 회전이 300m보다 멀면 연속 회전으로 보지 않는다`() {
+        tracker.setRoute(measured, 0)
+        tracker.onSnapshot(snap(0, 36f))
+        // 2050 m: 우회전(2120 m) 다음 우회전(2440 m)은 320 m 뒤
+        val e = tracker.advance(205_000).situations()
+        assertEquals(listOf(SituationType.LANE_RIGHT_TURN), e.map { it.type })
     }
 
     @Test

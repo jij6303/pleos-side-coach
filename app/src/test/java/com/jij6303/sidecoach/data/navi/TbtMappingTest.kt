@@ -22,6 +22,15 @@ class TbtMappingTest {
     }
 
     @Test
+    fun `연속 회전은 좌우 회전·유턴·분기만`() {
+        assertEquals(SituationType.CHAIN_RIGHT_TURN, TbtMapping.chain(SituationType.LANE_RIGHT_TURN))
+        assertEquals(SituationType.CHAIN_UTURN, TbtMapping.chain(SituationType.LANE_UTURN))
+        assertEquals(SituationType.CHAIN_KEEP_LEFT, TbtMapping.chain(SituationType.LANE_KEEP_LEFT))
+        assertNull(TbtMapping.chain(SituationType.LANE_STRAIGHT))
+        assertNull(TbtMapping.chain(SituationType.ROUNDABOUT))
+    }
+
+    @Test
     fun `안내하지 않는 유형은 null`() {
         listOf("TURN_ARRIVE", "TURN_TUNNEL", "TURN_TOLL", "TURN_UNKNOWN", "TURN_EXIT_ROUNDABOUT").forEach {
             assertNull(it, TbtMapping.turn(it))
@@ -32,7 +41,7 @@ class TbtMappingTest {
 
     @Test
     fun `차로 안내 문구는 15어절 이내`() {
-        SituationType.entries.filter { it.name.startsWith("LANE_") }.forEach {
+        SituationType.entries.filter { it.name.startsWith("LANE_") || it.name.startsWith("CHAIN_") }.forEach {
             val words = MessageCatalog.preview(it).split(" ").size
             assertTrue("$it: $words", words <= 15)
         }
