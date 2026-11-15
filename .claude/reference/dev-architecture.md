@@ -120,73 +120,7 @@ Pleos Connect Emulator v2.1.0, Vehicle SDK 2.3.2, Vehicle Service 2.3.22, 공식
 
 ## 2. 패키지·클래스 구조
 
-패키지명은 예시이고 💭, 실제 값은 Pleos My Project에 등록한 값으로 쓴다.
-
-```
-com.sidecoach
-├─ SideCoachApp.kt                  Application, ServiceLocator 초기화
-├─ di/ServiceLocator.kt             수동 DI (Fake/Real 구현 전환 플래그)
-├─ data/
-│  ├─ vehicle/
-│  │  ├─ VehicleDataSource.kt       interface: signals: Flow<VehicleSignal>, start(), stop()
-│  │  ├─ VehicleSignal.kt           sealed: SteeringAngle, TurnSignal, BrakePedal, Gear, Speed, Telltale, SeatBelt
-│  │  ├─ PleosVehicleDataSource.kt  Vehicle SDK 구독 (조향, 깜빡이, 브레이크, Safety)
-│  │  ├─ AaosPropertyDataSource.kt  CarPropertyManager 구독 (기어, 차속)
-│  │  ├─ CompositeVehicleDataSource.kt  위 두 소스를 merge
-│  │  └─ FakeVehicleDataSource.kt   디버그 패널, 스크립트 재생
-│  ├─ navi/
-│  │  ├─ NaviEventSource.kt         interface: events: Flow<NaviEvent>
-│  │  ├─ NaviEvent.kt               sealed: Tbt, CautionPoint, SpeedLimit, CameraAlert, RouteState
-│  │  ├─ PleosNaviEventSource.kt    NaviHelper + NaviHelperEventListener
-│  │  └─ FakeNaviEventSource.kt
-│  ├─ location/
-│  │  ├─ LocationSource.kt          FusedLocation 래퍼 (isSupported 분기)
-│  │  └─ SituationDb.kt             assets/situations.json (회전교차로, 비보호 등 좌표 DB)
-│  ├─ ux/UxRestrictionSource.kt     CarUxRestrictionsManager → Flow<UxState>
-│  └─ store/
-│     ├─ SessionStore.kt            DataStore: 세션 활성, 레벨, 쿨다운 상태 (프로세스 재생성 복원용)
-│     └─ TripDao.kt                 Room: 주행 기록, 이벤트 로그
-├─ domain/
-│  ├─ DrivingSnapshot.kt            data class: speedKmh, gear, steeringDeg, turnSignal, brakePct, ts
-│  ├─ DrivingStateRepository.kt     스냅샷 StateFlow + 링버퍼(최근 10초)
-│  ├─ detect/
-│  │  ├─ Detector.kt                interface: onSnapshot(s): DetectionEvent?
-│  │  ├─ BlinkerOmissionDetector.kt
-│  │  ├─ HardBrakeDetector.kt
-│  │  └─ SpeedingDetector.kt
-│  ├─ situation/
-│  │  ├─ SituationType.kt           ROUNDABOUT, MERGE, SCHOOL_ZONE, UNPROTECTED_LEFT, SPEED_CAMERA
-│  │  └─ SituationPreviewEngine.kt  NaviEvent + 위치 + DB → 예고 트리거
-│  ├─ coach/
-│  │  ├─ CoachMessage.kt            (type, priority, text, dedupeKey)
-│  │  ├─ CoachingArbiter.kt         우선순위 큐, 최소 간격, 유형별 상한, 숙련도 정책
-│  │  └─ MessageCatalog.kt          레벨·상황별 문구 (한국어)
-│  ├─ trip/TripRecorder.kt          이벤트 집계 (깜빡이 사용률, 급제동, 과속)
-│  └─ report/ReportGenerator.kt     성적표, 원포인트 과제 생성
-├─ voice/
-│  ├─ VoiceOutput.kt                interface: speak(msg), stop()
-│  ├─ PleosTtsVoiceOutput.kt        TextToSpeech SDK (ON_DEVICE)
-│  ├─ AudioFocusController.kt       NAVIGATION 컨텍스트, MAY_DUCK
-│  └─ PleosSttVoiceInput.kt         SpeechToText SDK ("지금 어떻게 해?")
-├─ service/
-│  ├─ CoachingService.kt            Foreground Service, 파이프라인 수명 관리
-│  └─ CoachingPipeline.kt           소스 → 리포지토리 → 디텍터 → 중재자 → 음성 연결
-├─ gleo/
-│  ├─ GleoContract.kt               액션명, ACTION_PARAM 키, 응답 액션 상수
-│  ├─ GleoActionParser.kt           ACTION_PARAM JSON 파싱 (runCatching)
-│  ├─ GleoActionReceiver.kt         component=service 액션 수신 (BroadcastReceiver)
-│  └─ GleoCallbackSender.kt         APP_ACTION_RESPONSE 브로드캐스트
-├─ tutorial/
-│  ├─ TutorialMission.kt            HAZARD_LIGHT, SEAT_BELT, PARKING_BRAKE, WIPER, DEFROST
-│  └─ TutorialEngine.kt             미션별 완료 판정 (신호 매칭)
-└─ ui/
-   ├─ MainActivity.kt               Compose 호스트, Gleo activity 액션 처리, Back 처리
-   ├─ UxModeController.kt           UxState + 기어 → UiMode(DRIVING_VOICE / PARKED_FULL)
-   ├─ driving/DrivingScreen.kt      핵심 카드 1장, 애니메이션 없음
-   ├─ tutorial/TutorialScreen.kt
-   ├─ report/ReportScreen.kt
-   └─ debug/DebugPanel.kt           (debug 빌드 전용) Fake 신호와 이벤트 주입
-```
+현재 구조와 패키지별 책임은 `docs/architecture.md`를 따른다.
 
 ---
 
@@ -808,38 +742,23 @@ object GleoCallbackSender {
 
 ---
 
-## 10. 에뮬레이터·Virtual Console 테스트 계획
+## 10. 에뮬레이터·Virtual Console 실측 메모
+
+> 실행 방법·콘솔 조작법·확인 항목은 `docs/test-guide.md`. 여기에는 실측으로 알게 된 사실만 둔다.
 
 ### 10.1 환경
 
-- Pleos Connect Emulator v2.1.0, API 34 시스템 이미지. AVD는 RAM 4GB, **Cold boot**(✅. Quick boot는 VHAL이 비활성화됨)
-- Virtual Console 연결(✅): `adb forward tcp:8088 tcp:8088` → `http://127.0.0.1:8088/`
-- 콘솔에서 바꿀 수 있는 값(✅):
-  - 조향각 -540~540°(1° 단위)
-  - 기어 P/R/N/D
-  - 깜빡이 Off, 좌/우 Blink, 좌/우 Flash
-  - 브레이크 0~100%
-  - 텔테일 Off/On/Blink
-  - 크루즈 상태와 목표 속도
-- **차속**: ✅ 실측. 콘솔 메인 화면에서 **기어 D + ACCEL 버튼을 누르고 있으면** 차속이 오르고, BRAKE로 감속한다. 조향 슬라이더와 함께 쓰면 주행을 그대로 재현할 수 있다.
-- 콘솔 Emulation Controls(48개 기능, 7개 도메인)에서 확인한 항목: Gear Selection, Brake Pedal(%), Turn Signal State, Hazard Lights, Telltales, Windshield Wiper Switch, Door Position/Lock, Seat Occupancy, Window, Cruise Control 등. **안전벨트 체결 항목은 없음.** 위쪽 검색창은 CarProperty 이름으로도 검색된다.
-- **GPS 경로 재생은 문서에 없음** → 상황 예고는 `FakeNaviEventSource`로 이벤트를 주입해서 시연한다. 시연 영상에는 이 사실을 표기한다.
-  - 구현(#21): `FakeRouteNaviEventSource`. 기어가 P에서 벗어나면 가상 경로(400m 회전교차로, 1.1km 어린이보호구역, 1.8km 비보호좌회전, 2.6km 합류)를 시작하고, 콘솔 차속을 적분한 이동 거리로 남은 거리를 보낸다. 대시보드에 "시연 경로"로 표시한다.
-- 주행 규제 전환(✅):
-  ```
-  adb shell cmd hmg_car_service --service drivingstate driving_regulation on
-  adb shell cmd hmg_car_service --service drivingstate driving_regulation off
-  ```
-- Gleo 액션 시뮬레이션(💭: 문서에 있는 방법은 아님, Intent 구조를 보고 추론함):
-  ```
-  adb shell am start -a START_DRIVING_COACH -n com.sidecoach/.ui.MainActivity --es ACTION_PARAM '{"experienceLevel":"BEGINNER"}'
-  adb shell am broadcast -a EXPLAIN_CURRENT_TRAFFIC_RULE -p com.sidecoach
-  ```
-- 녹화(✅): `adb exec-out screenrecord --output-format=h264 - > demo.h264` → ffmpeg로 mp4 변환
+- Pleos Connect Emulator v2.1.0, API 34 시스템 이미지, RAM 4GB. **Cold boot** 필수 (Quick boot는 VHAL이 비활성화됨)
+- 콘솔에서 바꿀 수 있는 값: 조향각 -540~540°(1° 단위), 기어 P/R/N/D, 깜빡이 Off·좌/우 Blink·Flash, 브레이크 0~100%, 텔테일 Off/On/Blink, 크루즈 상태와 목표 속도
+- 차속: 콘솔 메인 화면에서 기어 D + ACCEL을 누르고 있으면 오르고 BRAKE로 감속
+- 콘솔 Emulation Controls(48개 기능, 7개 도메인): Gear Selection, Brake Pedal(%), Turn Signal State, Hazard Lights, Telltales, Windshield Wiper Switch, Door Position/Lock, Seat Occupancy, Window, Cruise Control 등. **안전벨트 체결 항목 없음.** 위쪽 검색창은 CarProperty 이름으로도 검색됨
+- GPS 경로 재생은 문서에 없고, 에뮬레이터 내비 위치는 콘솔 차속으로 움직이지 않음 → 남은 거리는 차속 적분으로 계산, 내비 경로가 없으면 `FakeRouteNaviEventSource`(400m 회전교차로, 1.1km 어린이보호구역, 1.8km 비보호좌회전, 2.6km 합류)
+- 주행 규제: 문서의 `cmd hmg_car_service ... driving_regulation` 명령은 이 에뮬레이터에 없음. 콘솔 기어로 바뀜 (0.1절 참고)
+- Gleo: 실제 음성 호출은 Gleo 검토 후 활성화 → 에뮬레이터에서는 `am start -a <ACTION> --es ACTION_PARAM '<json>'`으로 시뮬레이션
+- 앱은 사용자 10으로 실행 → `run-as`·`am kill` 대신 `am crash --user 10 <패키지>`
+- `adb screenrecord`는 소리를 녹음하지 못함(최대 3분)
 
-### 10.1.1 시연 시나리오 자동 재생 (#61)
-
-`scripts/demo_scenario.py`가 **Virtual Console HTTP API**를 조작해 정해진 주행을 재생한다. 앱 코드는 그대로이고 실제 신호 경로(콘솔 → VHAL → SDK/AAOS → 앱)를 쓰므로 계기판·카메라 팝업·앱이 함께 움직인다.
+### 10.2 Virtual Console HTTP API (`scripts/demo_scenario.py`가 사용)
 
 | API (실측) | 용도 |
 |---|---|
@@ -848,33 +767,9 @@ object GleoCallbackSender {
 | `PUT /vehicle/gear?gear=Park\|Reverse\|Neutral\|Drive` | 기어 |
 | `PUT /vehicle/turn-signal?mode=Off\|BlinkLeft\|BlinkRight` | 깜빡이 |
 
-- 시나리오(약 171초): 출발 → 회전교차로 예고 → 깜빡이 켠 차선 변경 3회(칭찬) → 어린이보호구역 예고 → 깜빡이 없는 차선 변경(누락) → 비보호좌회전 예고 → 깜빡이 끄기 잊음 → 회전 과속 → 급제동 → 움직이는 중 P → 기어 경고 + 성적표. 실측: 12개 음성이 겹치지 않고 순서대로 재생
-- 브라우저의 콘솔 탭은 닫아야 한다 (페이지가 자기 값으로 덮어씀)
-- 직전 P 뒤 60초 안에 출발하면 앱이 같은 주행으로 이어가(#51) 예고가 나오지 않으므로, 스크립트가 61초를 채울 때까지 기다린다
-- `--record`는 `adb screenrecord`(최대 3분, 2560×1440, **소리 없음**). 음성까지 담으려면 PC에서 창을 녹화한다
-
-### 10.2 테스트 케이스
-
-| # | 시나리오 | 조작 | 기대 결과 |
-|---|---|---|---|
-| T1 | 세션 시작 | Gleo adb 명령 또는 앱 버튼 | Service 시작, 알림 표시, callback success |
-| T2 | 깜빡이 누락 | 기어 D, 차속 50(주입), 조향 +20° → -20° → 0°, 깜빡이 Off | "깜빡이 먼저!" 음성 1회, 성적표 누락 +1 |
-| T3 | 깜빡이 정상 | T2와 같은 조작에 깜빡이 우측 Blink를 먼저 켬 | 음성 없음, 사용률 증가, 3회 연속이면 칭찬 |
-| T4 | 커브 억제 | Fake TBT 회전 안내 100m 앞 + 조향 | 경고 없음 |
-| T5 | 저속 제외 | 차속 20 + 조향 패턴 | 경고 없음 |
-| T6 | 급제동 | 차속 60 → 30 (1초), 브레이크 0 → 90% | "부드럽게…" 음성, 쿨다운 10초 안에는 재발화 없음 |
-| T7 | 상황 예고 | Fake 회전교차로 이벤트 거리 300m → 100m | 300~150m 구간에서 1회만 발화 |
-| T8 | 주행 규제 | driving_regulation on | DrivingScreen 전환, 리포트·튜토리얼 진입 차단, 애니메이션 정지 |
-| T9 | 성적표 | 규제 off + 기어 P | 성적표 표시, 수치가 로그와 일치 |
-| ~~T10~~ | ~~튜토리얼~~ | 기능 제거(#35) | — |
-| T11 | Back 키 | 최상단에서 Back | 앱이 숨겨지고 코칭 음성은 계속, 프로세스 유지 |
-| T12 | 포커스 상실 | 코칭 발화 중 다른 앱이 포커스 요청 | 즉시 정지, 메시지 재생 안 함 |
-| T13 | 프로세스 재생성 | `adb shell am kill com.sidecoach` (백그라운드 상태) | Service 재시작 후 세션 복원 |
-| T14 | 폼 팩터 | FormFactorConsole로 portrait와 landscape 전환. **실측(#33)**: 앱 창 오른쪽 끝 "⋮" 손잡이로 창 1개(841×1210dp)↔2개(1682×1210dp) 전환 가능 | 잘림·겹침 없음 (#33에서 1200dp 기준 1열/2열로 수정·확인) |
-| T15 | Gleo service 액션 | `am broadcast EXPLAIN_…` | 상황 설명 음성, callback `silent` 전송 |
-| T16 | 주차 코치 (#37) | 콘솔 P → D → R, ACCEL 짧게 → BRAKE 정지, 조향 −200(3초) → −450, 다시 후진·정지, 조향 0, P | 1/5 시작 → 끝까지 → 덜 돌렸어요 → 2단계 기준점 → 가운데로 → 5/5 → "주차 끝". 급제동 오탐 없음 (✅ #37 실측) |
-
-- 도메인 단위 테스트(JVM): 디텍터와 중재자는 **시계열 스크립트**(CSV: ts, speed, steering, signal, brake)를 넣어서 판정 결과를 검증한다.
+- 브라우저의 콘솔 탭이 열려 있으면 페이지가 자기 값으로 덮어씀 → 닫고 실행
+- 직전 P 뒤 60초 안에 출발하면 같은 주행으로 이어가(#51) 예고가 나오지 않으므로, 스크립트가 61초를 채울 때까지 기다림
+- 실측: 시나리오 12개 음성이 겹치지 않고 순서대로 재생
 
 ---
 
