@@ -3,11 +3,10 @@ package com.jij6303.sidecoach.feature.coach
 import com.jij6303.sidecoach.data.navi.NaviEvent
 import com.jij6303.sidecoach.state.DrivingSnapshot
 import com.jij6303.sidecoach.feature.coach.detect.DetectionEvent
-import com.jij6303.sidecoach.feature.coach.detect.Detector
+import com.jij6303.sidecoach.feature.coach.detect.DetectorManager
 import com.jij6303.sidecoach.state.lane.CurrentLaneTracker
 import com.jij6303.sidecoach.feature.report.ReportGenerator
 import com.jij6303.sidecoach.feature.report.TripReport
-import com.jij6303.sidecoach.feature.report.session.SessionState
 import com.jij6303.sidecoach.feature.coach.situation.SituationPreviewEngine
 import com.jij6303.sidecoach.feature.report.trip.TripRecorder
 import com.jij6303.sidecoach.feature.report.trip.TripSession
@@ -28,7 +27,7 @@ import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.launch
 
 /**
- * 스냅샷 → 디텍터 → 기록·중재 → 코칭 메시지.
+ * 스냅샷 → 디텍터 매니저 → 기록·중재 → 코칭 메시지.
  * 내비 이벤트는 [previewEngine]이 상황 예고로 바꿔 중재자에 넣는다.
  * 스냅샷과 내비 이벤트는 한 흐름으로 합쳐 순서대로 처리한다 (디텍터·중재자 동시 접근 방지).
  * [tripSession]이 주행 시작(P 아닌 기어로 출발)을 알리면 통계를 초기화하고, 종료(P)를 알리면 성적표를 만든다.
@@ -36,11 +35,12 @@ import kotlinx.coroutines.launch
  * 음성 출력은 [messages]를 구독하는 VoiceCoach가 맡는다.
  *
  * 상태 저장(#31): 코칭 중 [saveIntervalMs]마다, 성적표가 만들어질 때, 멈출 때 [stateSink]로 내보낸다.
+ * 저장소는 app(SessionStore)이 맡고, 여기서는 자기 상태([State])만 내보낸다.
  * 처리·내보내기·복원은 같은 잠금 안에서 해 동시 접근을 막는다.
  */
 class CoachingPipeline(
     private val updates: Flow<DrivingSnapshot>,
-    private val detectors: List<Detector>,
+    private val detectors: DetectorManager,
     val arbiter: CoachingArbiter,
     val recorder: TripRecorder,
     private val tripSession: TripSession = TripSession(),
@@ -48,9 +48,22 @@ class CoachingPipeline(
     private val previewEngine: SituationPreviewEngine = SituationPreviewEngine(),
     /** 운전자가 알려준 차로(#69). 차선 변경으로 추적하고 상황 예고 문구에 쓴다. */
     val lane: CurrentLaneTracker = CurrentLaneTracker(),
-    private val stateSink: (SessionState) -> Unit = {},
+    private val stateSink: (State) -> Unit = {},
     private val saveIntervalMs: Long = 5_000,
 ) {
+    /**
+     * 이어가기에 필요한 코칭 상태. [savedAtMs]는 스냅샷과 같은 시계(elapsedRealtime)다.
+     * 주행 통계, 발화 횟수, 진행 중 주행(없으면 null), 예고한 지점, 아직 안 본 성적표.
+     */
+    data class State(
+        val savedAtMs: Long,
+        val recorder: TripRecorder.State,
+        val arbiter: CoachingArbiter.State,
+        val trip: TripSession.State?,
+        val announced: Map<String, Long>,
+        val pendingReport: TripReport?,
+    )
+
     private val lock = Any()
 
     /** 마지막으로 처리한 입력 시각 (저장 시각으로 쓴다). */
@@ -101,7 +114,7 @@ class CoachingPipeline(
         job?.cancel()
         job = null
         save()
-        detectors.forEach { it.reset() }
+        detectors.reset()
         tripSession.reset()
         previewEngine.reset()
         lane.clear()
@@ -113,8 +126,8 @@ class CoachingPipeline(
     }
 
     /** 지금 상태. 진행 중 주행이 없으면 trip은 null. */
-    fun exportState(): SessionState = synchronized(lock) {
-        SessionState(
+    fun exportState(): State = synchronized(lock) {
+        State(
             savedAtMs = lastInputMs,
             recorder = recorder.exportState(),
             arbiter = arbiter.exportState(),
@@ -125,7 +138,7 @@ class CoachingPipeline(
     }
 
     /** 저장된 상태에서 이어간다. [nowMs]는 지금 시각(스냅샷과 같은 시계). */
-    fun restore(state: SessionState, nowMs: Long) = synchronized(lock) {
+    fun restore(state: State, nowMs: Long) = synchronized(lock) {
         recorder.restore(state.recorder)
         arbiter.restore(state.arbiter)
         tripSession.restore(state.trip, nowMs)
@@ -141,7 +154,7 @@ class CoachingPipeline(
 
     /** 새 주행 시작: 통계·발화 횟수 초기화. */
     fun resetTrip() {
-        detectors.forEach { it.reset() }
+        detectors.reset()
         arbiter.reset()
         recorder.reset()
         previewEngine.reset()
@@ -162,8 +175,7 @@ class CoachingPipeline(
 
         lane.onSnapshot(s)
         val produced = mutableListOf<CoachMessage>()
-        for (detector in detectors) {
-            val event = detector.onSnapshot(s) ?: continue
+        for (event in detectors.onSnapshot(s)) {
             if (event is DetectionEvent.LaneChange) lane.onLaneChange(event.direction)
             val praise = recorder.record(event)
             toMessages(event, praise).forEach { produced += it }

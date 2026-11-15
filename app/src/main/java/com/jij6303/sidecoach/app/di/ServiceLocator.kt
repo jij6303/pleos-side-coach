@@ -10,7 +10,8 @@ import com.jij6303.sidecoach.data.navi.PleosNaviEventSource
 import com.jij6303.sidecoach.data.navi.RoutingNaviEventSource
 import com.jij6303.sidecoach.data.navi.VehicleMotion
 import com.jij6303.sidecoach.feature.parking.ParkingSettings
-import com.jij6303.sidecoach.feature.report.session.SessionStore
+import com.jij6303.sidecoach.app.session.SessionState
+import com.jij6303.sidecoach.app.session.SessionStore
 import com.jij6303.sidecoach.data.ux.AaosUxRestrictionSource
 import com.jij6303.sidecoach.data.ux.FakeUxRestrictionSource
 import com.jij6303.sidecoach.data.ux.UxRestrictionSource
@@ -31,6 +32,7 @@ import com.jij6303.sidecoach.feature.tips.CarTip
 import com.jij6303.sidecoach.feature.tips.CarTipSpeaker
 import com.jij6303.sidecoach.feature.coach.detect.BlinkerOmissionDetector
 import com.jij6303.sidecoach.feature.coach.detect.BlinkerLeftOnDetector
+import com.jij6303.sidecoach.feature.coach.detect.DetectorManager
 import com.jij6303.sidecoach.feature.coach.detect.GearShiftWhileMovingDetector
 import com.jij6303.sidecoach.feature.coach.detect.TurnSpeedDetector
 import com.jij6303.sidecoach.feature.coach.detect.HardBrakeDetector
@@ -164,18 +166,20 @@ object ServiceLocator {
         )
         coachingPipeline = CoachingPipeline(
             updates = drivingStateRepository.updates,
-            detectors = listOf(
-                BlinkerOmissionDetector(),
-                HardBrakeDetector(),
-                BlinkerLeftOnDetector(),
-                TurnSpeedDetector(),
-                GearShiftWhileMovingDetector(),
+            detectors = DetectorManager(
+                listOf(
+                    BlinkerOmissionDetector(),
+                    HardBrakeDetector(),
+                    BlinkerLeftOnDetector(),
+                    TurnSpeedDetector(),
+                    GearShiftWhileMovingDetector(),
+                ),
             ),
             arbiter = CoachingArbiter(),
             recorder = TripRecorder(),
             naviEvents = naviEventSource.events,
             // 프로세스가 다시 만들어져도 이어가도록 주기적으로 저장 (dev-architecture 9장, #31)
-            stateSink = { sessionStore.save(it.copy(route = fakeRoute.exportState())) },
+            stateSink = { sessionStore.save(SessionState(it, fakeRoute.exportState())) },
         )
         laneInput = LaneInput(coachingPipeline.lane, clock)
         // 중재자가 고른 메시지를 로그로도 남긴다 (logcat 태그: Coach)
@@ -287,9 +291,9 @@ object ServiceLocator {
             sessionStore.clear()
             return
         }
-        coachingPipeline.restore(saved, now)
+        coachingPipeline.restore(saved.coaching, now)
         fakeRoute.restore(saved.route)
-        Log.i("SessionStore", "restored: trip=${saved.trip != null} stats=${saved.recorder.stats} report=${saved.pendingReport != null}")
+        Log.i("SessionStore", "restored: trip=${saved.coaching.trip != null} stats=${saved.coaching.recorder.stats} report=${saved.coaching.pendingReport != null}")
     }
 
     fun stopCoaching() {
