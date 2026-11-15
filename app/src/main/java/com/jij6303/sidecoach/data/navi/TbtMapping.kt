@@ -31,10 +31,4 @@ object TbtMapping {
         SituationType.LANE_KEEP_RIGHT -> SituationType.CHAIN_KEEP_RIGHT
         else -> null
     }
-
-    /** `ai.pleos.playground.navi.constants.CautionPointType` 이름. */
-    fun caution(cautionTypeName: String): SituationType? = when (cautionTypeName) {
-        "SCHOOL_ZONE" -> SituationType.SCHOOL_ZONE
-        else -> null
-    }
 }

@@ -119,7 +119,7 @@ class CoachingPipelineTest {
         laneChange(0, TurnSignalState.RIGHT) // 조향이 먼저 오른쪽(−) → 1차로에서 2차로
         assertEquals(2, pipeline.lane.current(5_000))
         val m = pipeline.processNavi(NaviEvent.Situation("t", SituationType.LANE_LEFT_TURN, 450f, 10_000))
-        assertEquals("곧 좌회전이에요. 지금 2차로니까 깜빡이 켜고 1차로로 옮기세요.", m?.text)
+        assertEquals("지금 2차로예요. 좌회전하려면 깜빡이 켜고 1차로로 옮겨요.", m?.text)
     }
 
     @Test
