@@ -730,6 +730,24 @@
 
 ---
 
+### #87 — 새 데이터 흐름 도식대로 구조 재정리 (2026-11-15)
+
+**왜 이 작업을 했나**
+> 사용자가 `docs/data-flow.png`를 새로 그리고 그대로 맞춰 달라고 함. #85(PR #86, 역할 클래스 여러 개로 쪼갬)는 도식에 없는 클래스가 많아 사용자가 거절 → 닫음. #84(DetectorManager, SessionStore를 app으로)는 도식에 있어 유지
+
+**뭘 했나**
+> - 내비 → `CoachingPipeline` 직접(도식에 차량→내비 선 없음): `NaviEvent`를 `RouteStarted(NaviRoute)`/`RouteEnded`로. `TbtRouteTracker`·`VehicleMotion` 삭제, `TbtMapping.route`가 구간 거리 → 지점 위치. 남은 거리는 `feature/coach/situation/RouteProgress`(스냅샷 차속 + 파이프라인 1초 틱). 시연 경로도 지점 목록만 보내고, P에서 출발할 때마다 처음부터는 `RouteProgress`가 처리
+> - 디텍터 → 중재자: `DetectorManager.onSnapshot`이 `Detection(events, candidates)`. 교정 문구는 `DetectionEvent.correction()`, 칭찬 연속은 매니저가 셈(`TripRecorder`에서 이동)
+> - `TripRecorder`가 `TripSession`을 가지고 주행 구분 + 통계. 끝나면 `ReportGenerator.publish` → 성적표 보관(`lastReport`) + 요약 음성 `announcements`를 VoiceCoach에 직접 merge(중재자·파이프라인 메시지 안 거침)
+> - `VoiceCoach`를 `voice` 패키지로(도식 색). voice → feature/coach(`CoachMessage`) 의존
+> - 저장 JSON 키 유지. route는 `id` 추가, `odometerM` = 경로를 따라온 거리. id 없는 예전 저장분은 시연 경로로 읽음
+> - 단위 테스트 187개 통과. 에뮬레이터: 시연 시나리오 코칭 10종 + 성적표 음성(기어 경고 뒤), `am crash` 후 복원 정상
+
+**어떤 구조를 선택했고 왜**
+> 끝나는 스냅샷의 판정(움직이는 중 P)이 성적표에 들어가야 해서 `TripRecorder.onSnapshot`(주행 구분)과 `record`(통계 + 끝났으면 성적표)를 나눔. 기어 경고는 `record` 전에 바로 내보내 성적표 음성보다 먼저 나가게 함
+
+---
+
 ## 🐛 에러 모음
 
 | 에러 | 원인 | 해결 |

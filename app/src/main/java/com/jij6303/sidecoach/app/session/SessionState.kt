@@ -1,16 +1,12 @@
 package com.jij6303.sidecoach.app.session
 
-import com.jij6303.sidecoach.data.navi.FakeRouteNaviEventSource
 import com.jij6303.sidecoach.feature.coach.CoachingPipeline
 
 /**
- * 프로세스가 다시 만들어져도 이어갈 주행 세션 상태.
- * 코칭 상태([coaching]: 주행 통계, 발화 횟수, 예고한 지점 등)와 시연 경로 위치([route])를 묶는다.
+ * 프로세스가 다시 만들어져도 이어갈 주행 세션 상태. 내용은 [CoachingPipeline]이 내보낸 코칭 상태다
+ * (주행 기록, 칭찬 연속, 발화 횟수, 예고한 지점, 경로 위치).
  */
-data class SessionState(
-    val coaching: CoachingPipeline.State,
-    val route: FakeRouteNaviEventSource.RouteState? = null,
-) {
+data class SessionState(val coaching: CoachingPipeline.State) {
     /** 저장 시각. 스냅샷과 같은 시계(elapsedRealtime)라 재부팅하면 작아진다. */
     val savedAtMs: Long get() = coaching.savedAtMs
 

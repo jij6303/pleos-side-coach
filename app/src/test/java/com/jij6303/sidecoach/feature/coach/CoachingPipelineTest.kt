@@ -6,23 +6,25 @@ import com.jij6303.sidecoach.state.DrivingSnapshot
 import com.jij6303.sidecoach.feature.coach.detect.BlinkerOmissionDetector
 import com.jij6303.sidecoach.feature.coach.detect.DetectorManager
 import com.jij6303.sidecoach.feature.coach.detect.HardBrakeDetector
-import com.jij6303.sidecoach.feature.report.trip.TripRecorder
 import kotlinx.coroutines.flow.emptyFlow
 import com.jij6303.sidecoach.data.navi.NaviEvent
+import com.jij6303.sidecoach.data.navi.NaviRoute
+import com.jij6303.sidecoach.data.navi.RoutePoint
 import com.jij6303.sidecoach.feature.report.Grade
 import com.jij6303.sidecoach.data.navi.SituationType
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import kotlinx.coroutines.DelicateCoroutinesApi
+import kotlinx.coroutines.launch
 import org.junit.Test
 
+@OptIn(DelicateCoroutinesApi::class)
 class CoachingPipelineTest {
 
     private val pipeline = CoachingPipeline(
         updates = emptyFlow(),
         detectors = DetectorManager(listOf(BlinkerOmissionDetector(), HardBrakeDetector())),
-        arbiter = CoachingArbiter(),
-        recorder = TripRecorder(),
     )
 
     private fun laneChange(t0: Long, signal: TurnSignalState): List<CoachMessage> {
@@ -119,23 +121,47 @@ class CoachingPipelineTest {
         pipeline.lane.set(1, 0)
         laneChange(0, TurnSignalState.RIGHT) // 조향이 먼저 오른쪽(−) → 1차로에서 2차로
         assertEquals(2, pipeline.lane.current(5_000))
-        val m = pipeline.processNavi(NaviEvent.Situation("t", SituationType.LANE_LEFT_TURN, 450f, 10_000))
+        startRoute(RoutePoint("t", SituationType.LANE_LEFT_TURN, 450f), at = 10_000)
+        val m = pipeline.processTick(10_000)
         assertEquals("지금 2차로예요. 좌회전하려면 깜빡이 켜고 1차로로 옮겨요.", m?.text)
     }
 
     @Test
     fun `차로를 모르면 일반 안내`() {
-        val m = pipeline.processNavi(NaviEvent.Situation("t", SituationType.LANE_LEFT_TURN, 450f, 0))
+        startRoute(RoutePoint("t", SituationType.LANE_LEFT_TURN, 450f), at = 0)
+        val m = pipeline.processTick(0)
         assertEquals(MessageCatalog.preview(SituationType.LANE_LEFT_TURN), m?.text)
     }
 
     @Test
-    fun `T7 내비 이벤트가 예고 구간에 들어오면 상황 예고를 말한다`() {
-        assertNull(pipeline.processNavi(NaviEvent.Situation("r", SituationType.ROUNDABOUT, 350f, 0)))
-        val m = pipeline.processNavi(NaviEvent.Situation("r", SituationType.ROUNDABOUT, 290f, 1_000))
+    fun `T7 경로 지점이 예고 구간에 들어오면 상황 예고를 말한다`() {
+        startRoute(RoutePoint("r", SituationType.ROUNDABOUT, 350f), at = 0)
+        assertNull(pipeline.processTick(0))
+        pipeline.process(DrivingSnapshot(timestampMs = 0, speedKmh = 36f, gear = GearPosition.DRIVE)) // 10 m/s
+        val m = pipeline.processTick(6_000) // 290 m 남음
         assertEquals(CoachType.PREVIEW, m?.type)
         assertEquals(m, pipeline.lastMessage.value)
-        assertNull(pipeline.processNavi(NaviEvent.Situation("r", SituationType.ROUNDABOUT, 200f, 9_000)))
+        assertNull(pipeline.processTick(14_000)) // 210 m: 이미 예고함
+    }
+
+    @Test
+    fun `주행이 끝나면 성적표 요약은 중재자를 거치지 않고 ReportGenerator가 보낸다`() {
+        val announced = mutableListOf<CoachMessage>()
+        val job = kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.Unconfined) {
+            pipeline.recorder.reports.announcements.collect { announced += it }
+        }
+        (0L..10_000L step 1_000).forEach {
+            pipeline.process(DrivingSnapshot(timestampMs = it, speedKmh = 30f, gear = GearPosition.DRIVE))
+        }
+        pipeline.process(DrivingSnapshot(timestampMs = 11_000, speedKmh = 0f, gear = GearPosition.DRIVE))
+        assertNull(pipeline.process(DrivingSnapshot(timestampMs = 12_000, speedKmh = 0f, gear = GearPosition.PARK)))
+        job.cancel()
+        assertEquals(listOf(CoachType.REPORT), announced.map { it.type })
+        assertEquals(pipeline.lastReport.value!!.announcement, announced.single().text)
+    }
+
+    private fun startRoute(point: RoutePoint, at: Long) {
+        pipeline.processNavi(NaviEvent.RouteStarted(NaviRoute("route-$at", listOf(point)), at))
     }
 
     @Test
@@ -143,8 +169,6 @@ class CoachingPipelineTest {
         val p = CoachingPipeline(
             updates = emptyFlow(),
             detectors = DetectorManager(listOf(com.jij6303.sidecoach.feature.coach.detect.GearShiftWhileMovingDetector())),
-            arbiter = CoachingArbiter(),
-            recorder = TripRecorder(),
         )
         (0L..10_000L step 1_000).forEach {
             p.process(DrivingSnapshot(timestampMs = it, speedKmh = 30f, gear = GearPosition.DRIVE))

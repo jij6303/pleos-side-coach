@@ -8,7 +8,6 @@ import com.jij6303.sidecoach.data.navi.FakeRouteNaviEventSource
 import com.jij6303.sidecoach.data.navi.NaviEventSource
 import com.jij6303.sidecoach.data.navi.PleosNaviEventSource
 import com.jij6303.sidecoach.data.navi.RoutingNaviEventSource
-import com.jij6303.sidecoach.data.navi.VehicleMotion
 import com.jij6303.sidecoach.feature.parking.ParkingSettings
 import com.jij6303.sidecoach.app.session.SessionState
 import com.jij6303.sidecoach.app.session.SessionStore
@@ -21,7 +20,6 @@ import com.jij6303.sidecoach.data.vehicle.FakeVehicleDataSource
 import com.jij6303.sidecoach.data.vehicle.PleosVehicleDataSource
 import com.jij6303.sidecoach.data.vehicle.VehicleDataSource
 import com.jij6303.sidecoach.state.DrivingStateRepository
-import com.jij6303.sidecoach.feature.coach.CoachingArbiter
 import com.jij6303.sidecoach.feature.coach.CoachingPipeline
 import com.jij6303.sidecoach.feature.coach.MessageCatalog
 import com.jij6303.sidecoach.feature.parking.ParkingCoachController
@@ -37,14 +35,13 @@ import com.jij6303.sidecoach.feature.coach.detect.GearShiftWhileMovingDetector
 import com.jij6303.sidecoach.feature.coach.detect.TurnSpeedDetector
 import com.jij6303.sidecoach.feature.coach.detect.HardBrakeDetector
 import com.jij6303.sidecoach.feature.coach.lane.LaneInput
-import com.jij6303.sidecoach.feature.report.trip.TripRecorder
 import com.jij6303.sidecoach.state.UiMode
 import com.jij6303.sidecoach.state.UxModeController
 import com.jij6303.sidecoach.voice.AndroidTtsVoiceOutput
 import com.jij6303.sidecoach.voice.AudioFocusController
 import com.jij6303.sidecoach.voice.ClipVoiceOutput
 import com.jij6303.sidecoach.voice.NoAudioFocus
-import com.jij6303.sidecoach.feature.coach.VoiceCoach
+import com.jij6303.sidecoach.voice.VoiceCoach
 import com.jij6303.sidecoach.voice.VoiceOutput
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -79,8 +76,6 @@ object ServiceLocator {
     lateinit var naviEventSource: NaviEventSource
         private set
 
-    /** 시연용 경로. 위치를 저장·복원하려고 구체 타입으로도 들고 있는다. */
-    private lateinit var fakeRoute: FakeRouteNaviEventSource
     private lateinit var sessionStore: SessionStore
 
     /** 메시지·스냅샷과 같은 시계: 실제 소스는 elapsedRealtime, Fake는 currentTimeMillis. */
@@ -141,15 +136,13 @@ object ServiceLocator {
         ).mode
         uiMode = uiModeSource.stateIn(appScope, SharingStarted.WhileSubscribed(5_000), UiMode.DRIVING_VOICE)
         clock = if (useFake) System::currentTimeMillis else SystemClock::elapsedRealtime
-        // 내비 소스는 남은 거리 계산에 시각·차속·기어만 쓴다
-        val motions = drivingStateRepository.updates.map { VehicleMotion(it.timestampMs, it.speedKmh, it.gear) }
-        fakeRoute = FakeRouteNaviEventSource(motions, clock)
+        // 내비 소스는 경로(지점 목록)만 보낸다. 남은 거리는 코칭 쪽이 스냅샷 차속으로 계산한다
+        val fakeRoute = FakeRouteNaviEventSource(clock)
         naviEventSource = if (useFake) {
             fakeRoute
         } else {
             val real = PleosNaviEventSource(
                 context = context,
-                motions = motions,
                 clock = clock,
                 log = { Log.i("Navi", it) },
             )
@@ -175,11 +168,10 @@ object ServiceLocator {
                     GearShiftWhileMovingDetector(),
                 ),
             ),
-            arbiter = CoachingArbiter(),
-            recorder = TripRecorder(),
             naviEvents = naviEventSource.events,
+            clock = clock,
             // 프로세스가 다시 만들어져도 이어가도록 주기적으로 저장 (dev-architecture 9장, #31)
-            stateSink = { sessionStore.save(SessionState(it, fakeRoute.exportState())) },
+            stateSink = { sessionStore.save(SessionState(it)) },
         )
         laneInput = LaneInput(coachingPipeline.lane, clock)
         // 중재자가 고른 메시지를 로그로도 남긴다 (logcat 태그: Coach)
@@ -276,7 +268,16 @@ object ServiceLocator {
         drivingStateRepository.start(appScope)
         coachingPipeline.start(appScope)
         parking.start(appScope)
-        voiceCoach.start(appScope, merge(coachingPipeline.messages, parking.messages, tipSpeaker.messages, laneInput.messages))
+        voiceCoach.start(
+            appScope,
+            merge(
+                coachingPipeline.messages,
+                coachingPipeline.recorder.reports.announcements, // 성적표 요약: 중재자를 거치지 않는다
+                parking.messages,
+                tipSpeaker.messages,
+                laneInput.messages,
+            ),
+        )
     }
 
     /**
@@ -292,8 +293,7 @@ object ServiceLocator {
             return
         }
         coachingPipeline.restore(saved.coaching, now)
-        fakeRoute.restore(saved.route)
-        Log.i("SessionStore", "restored: trip=${saved.coaching.trip != null} stats=${saved.coaching.recorder.stats} report=${saved.coaching.pendingReport != null}")
+        Log.i("SessionStore", "restored: trip=${saved.coaching.trip.session != null} stats=${saved.coaching.trip.stats} report=${saved.coaching.trip.pendingReport != null}")
     }
 
     fun stopCoaching() {

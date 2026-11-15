@@ -17,7 +17,7 @@ class SessionStore(context: Context) {
     }
 
     fun load(): SessionState? = SessionStateCodec.decode(prefs.getString(KEY, null)).also {
-        Log.i(TAG, if (it == null) "load: none" else "load: savedAt=${it.savedAtMs} trip=${it.coaching.trip != null} stats=${it.coaching.recorder.stats}")
+        Log.i(TAG, if (it == null) "load: none" else "load: savedAt=${it.savedAtMs} trip=${it.coaching.trip.session != null} stats=${it.coaching.trip.stats}")
     }
 
     fun clear() {

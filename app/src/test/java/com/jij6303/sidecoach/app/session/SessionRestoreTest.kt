@@ -2,6 +2,8 @@ package com.jij6303.sidecoach.app.session
 
 import com.jij6303.sidecoach.data.navi.FakeRouteNaviEventSource
 import com.jij6303.sidecoach.data.navi.NaviEvent
+import com.jij6303.sidecoach.data.navi.NaviRoute
+import com.jij6303.sidecoach.data.navi.RoutePoint
 import com.jij6303.sidecoach.data.vehicle.GearPosition
 import com.jij6303.sidecoach.state.DrivingSnapshot
 import com.jij6303.sidecoach.feature.coach.CoachType
@@ -12,6 +14,8 @@ import com.jij6303.sidecoach.feature.coach.detect.DetectorManager
 import com.jij6303.sidecoach.feature.coach.detect.HardBrakeDetector
 import com.jij6303.sidecoach.feature.report.Grade
 import com.jij6303.sidecoach.data.navi.SituationType
+import com.jij6303.sidecoach.feature.coach.situation.RouteProgress
+import com.jij6303.sidecoach.feature.coach.situation.SituationPreviewEngine
 import com.jij6303.sidecoach.feature.report.trip.TripRecorder
 import com.jij6303.sidecoach.feature.report.trip.TripSession
 import com.jij6303.sidecoach.feature.report.trip.TripStats
@@ -28,13 +32,19 @@ class SessionRestoreTest {
     private fun pipeline() = CoachingPipeline(
         updates = emptyFlow(),
         detectors = DetectorManager(listOf(BlinkerOmissionDetector(), HardBrakeDetector())),
-        arbiter = CoachingArbiter(),
-        recorder = TripRecorder(),
     )
 
     /** 코칭 상태를 저장 형식으로 썼다가 다시 읽는다. */
     private fun roundTrip(p: CoachingPipeline) =
         SessionStateCodec.decode(SessionStateCodec.encode(SessionState(p.exportState())))!!
+
+    private fun state(savedAtMs: Long, trip: TripRecorder.State) = CoachingPipeline.State(
+        savedAtMs = savedAtMs,
+        trip = trip,
+        praiseStreak = 0,
+        arbiter = CoachingArbiter().exportState(),
+        preview = SituationPreviewEngine.State(emptyMap(), null),
+    )
 
     private fun snap(ts: Long, gear: GearPosition, kmh: Float, brake: Boolean = false) =
         DrivingSnapshot(timestampMs = ts, gear = gear, speedKmh = kmh, brakePressed = brake)
@@ -51,7 +61,7 @@ class SessionRestoreTest {
     fun `T13 프로세스가 다시 만들어져도 통계와 진행 중 주행을 이어간다`() {
         val before = drivenPipeline()
         val saved = roundTrip(before).coaching
-        assertNotNull(saved.trip)
+        assertNotNull(saved.trip.session)
 
         // 새 프로세스: 20초 뒤(다운타임 8초) 복원
         val after = pipeline()
@@ -88,7 +98,7 @@ class SessionRestoreTest {
         p.process(snap(13_000, GearPosition.DRIVE, 0f))
         p.process(snap(14_000, GearPosition.PARK, 0f))
         val saved = roundTrip(p).coaching
-        assertEquals(14_000L, saved.trip?.pausedAtMs) // P에 넣은 시각: 이어가기 판단용 (#51)
+        assertEquals(14_000L, saved.trip.session?.pausedAtMs) // P에 넣은 시각: 이어가기 판단용 (#51)
 
         val after = pipeline().apply { restore(saved, nowMs = 15_000) }
         assertEquals(Grade.GREAT, after.lastReport.value?.grade)
@@ -105,31 +115,32 @@ class SessionRestoreTest {
 
     @Test
     fun `예고한 지점은 복원 후에도 다시 말하지 않는다`() {
+        val route = NaviEvent.RouteStarted(NaviRoute("route", listOf(RoutePoint("r", SituationType.ROUNDABOUT, 290f))), 0)
         val p = pipeline()
-        p.process(snap(0, GearPosition.DRIVE, 50f))
-        assertEquals(CoachType.PREVIEW, p.processNavi(NaviEvent.Situation("r", SituationType.ROUNDABOUT, 290f, 1_000))?.type)
+        p.processNavi(route)
+        assertEquals(CoachType.PREVIEW, p.processTick(1_000)?.type)
 
+        // 새 프로세스: 내비가 같은 경로를 다시 보내도 이미 예고한 지점은 말하지 않는다
         val after = pipeline().apply { restore(roundTrip(p).coaching, 2_000) }
-        assertNull(after.processNavi(NaviEvent.Situation("r", SituationType.ROUNDABOUT, 250f, 9_000)))
+        after.processNavi(route)
+        assertNull(after.processTick(9_000))
     }
 
     @Test
-    fun `시연 경로 위치를 이어가고 다운타임은 이동으로 치지 않는다`() {
-        var now = 0L
-        val route = FakeRouteNaviEventSource(
-            motions = emptyFlow(),
-            clock = { now },
-            route = listOf(FakeRouteNaviEventSource.RoutePoint("r", SituationType.ROUNDABOUT, 400f)),
-        )
-        val state = FakeRouteNaviEventSource.RouteState(odometerM = 150.0, speedKmh = 36f, lastSent = mapOf("r" to 25))
-        val restored = SessionStateCodec.decode(
-            SessionStateCodec.encode(SessionState(drivenPipeline().exportState(), route = state)),
-        )!!.route
-        assertEquals(state, restored)
+    fun `시연 경로 위치를 저장·복원한다 (예전 저장분은 id 없이 시연 경로)`() {
+        val state = RouteProgress.State(routeId = "demo", travelledM = 150.0, speedKmh = 36f)
+        val coaching = drivenPipeline().exportState().let { it.copy(preview = it.preview.copy(route = state)) }
+        val json = SessionStateCodec.encode(SessionState(coaching))
+        assertEquals(state, SessionStateCodec.decode(json)!!.coaching.preview.route)
 
-        now = 100_000
-        route.restore(restored)
-        assertEquals(150.0, route.exportState()!!.odometerM, 0.001)
+        val old = org.json.JSONObject(json).apply {
+            put("route", org.json.JSONObject().put("odometerM", 150.0).put("speed", 36.0).put("lastSent", org.json.JSONObject()))
+        }.toString()
+        assertEquals(state, SessionStateCodec.decode(old)!!.coaching.preview.route)
+
+        val after = pipeline().apply { restore(SessionStateCodec.decode(json)!!.coaching, 100_000) }
+        after.processNavi(NaviEvent.RouteStarted(FakeRouteNaviEventSource.DEMO_ROUTE, 100_000))
+        assertEquals(state, after.exportState().preview.route)
     }
 
     @Test
@@ -146,9 +157,8 @@ class SessionRestoreTest {
         session.onSnapshot(snap(10_000, GearPosition.DRIVE, 0f))
         session.onSnapshot(snap(11_000, GearPosition.PARK, 0f))
         val state = SessionStateCodec.decode(
-            SessionStateCodec.encode(SessionState(CoachingPipeline.State(savedAtMs = 11_000, recorder = TripRecorder().exportState(),
-                arbiter = CoachingArbiter().exportState(), trip = session.exportState(), announced = emptyMap(), pendingReport = null))),
-        )!!.coaching.trip
+            SessionStateCodec.encode(SessionState(state(savedAtMs = 11_000, trip = TripRecorder.State(TripStats(), session.exportState(), null)))),
+        )!!.coaching.trip.session
 
         val restored = TripSession()
         restored.restore(state, nowMs = 20_000)
@@ -158,14 +168,13 @@ class SessionRestoreTest {
     @Test
     fun `새 코칭 횟수도 저장하고, 예전 저장 데이터는 0으로 읽는다 (#53)`() {
         val stats = TripStats(hardBrakes = 1, blinkerLeftOn = 2, turnTooFast = 3, gearShiftsMoving = 4)
-        val state = SessionState(CoachingPipeline.State(savedAtMs = 1, recorder = TripRecorder.State(stats, 0),
-            arbiter = CoachingArbiter().exportState(), trip = null, announced = emptyMap(), pendingReport = null))
+        val state = SessionState(state(savedAtMs = 1, trip = TripRecorder.State(stats, null, null)))
         val json = SessionStateCodec.encode(state)
-        assertEquals(stats, SessionStateCodec.decode(json)!!.coaching.recorder.stats)
+        assertEquals(stats, SessionStateCodec.decode(json)!!.coaching.trip.stats)
 
         val old = org.json.JSONObject(json).apply {
             getJSONObject("stats").apply { remove("blinkerLeftOn"); remove("turnTooFast"); remove("gearShiftsMoving") }
         }.toString()
-        assertEquals(TripStats(hardBrakes = 1), SessionStateCodec.decode(old)!!.coaching.recorder.stats)
+        assertEquals(TripStats(hardBrakes = 1), SessionStateCodec.decode(old)!!.coaching.trip.stats)
     }
 }
