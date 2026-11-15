@@ -8,6 +8,7 @@ import com.jij6303.sidecoach.data.navi.FakeRouteNaviEventSource
 import com.jij6303.sidecoach.data.navi.NaviEventSource
 import com.jij6303.sidecoach.data.navi.PleosNaviEventSource
 import com.jij6303.sidecoach.data.navi.RoutingNaviEventSource
+import com.jij6303.sidecoach.data.navi.VehicleMotion
 import com.jij6303.sidecoach.feature.parking.ParkingSettings
 import com.jij6303.sidecoach.feature.report.session.SessionStore
 import com.jij6303.sidecoach.data.ux.AaosUxRestrictionSource
@@ -138,13 +139,15 @@ object ServiceLocator {
         ).mode
         uiMode = uiModeSource.stateIn(appScope, SharingStarted.WhileSubscribed(5_000), UiMode.DRIVING_VOICE)
         clock = if (useFake) System::currentTimeMillis else SystemClock::elapsedRealtime
-        fakeRoute = FakeRouteNaviEventSource(drivingStateRepository.updates, clock)
+        // 내비 소스는 남은 거리 계산에 시각·차속·기어만 쓴다
+        val motions = drivingStateRepository.updates.map { VehicleMotion(it.timestampMs, it.speedKmh, it.gear) }
+        fakeRoute = FakeRouteNaviEventSource(motions, clock)
         naviEventSource = if (useFake) {
             fakeRoute
         } else {
             val real = PleosNaviEventSource(
                 context = context,
-                snapshots = drivingStateRepository.updates,
+                motions = motions,
                 clock = clock,
                 log = { Log.i("Navi", it) },
             )

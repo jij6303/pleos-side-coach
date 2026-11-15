@@ -37,9 +37,6 @@ sidecoach/
 `feature`끼리의 연결은 두 가지다.
 - 모든 기능이 `feature/coach`의 `CoachMessage`로 말한다. 주차 안내, 성적표 요약, 도움말 답변도 같은 메시지 형식으로 음성 출력에 들어간다.
 - `CoachingPipeline`이 주행 기록(`feature/report`의 `TripRecorder`)을 함께 돌린다. 코칭 판정과 통계가 같은 스냅샷을 같은 순서로 봐야 하기 때문이다.
-
-예외 하나: `data/navi`의 `TbtRouteTracker`는 남은 거리를 계산하려고 `state`의 `DrivingSnapshot`(차속)을 읽는다.
-
 ## 2. 데이터 흐름
 
 ```

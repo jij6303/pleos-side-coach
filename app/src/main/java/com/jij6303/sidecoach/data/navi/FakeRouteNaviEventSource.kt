@@ -1,7 +1,6 @@
 package com.jij6303.sidecoach.data.navi
 
 import com.jij6303.sidecoach.data.vehicle.GearPosition
-import com.jij6303.sidecoach.state.DrivingSnapshot
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -15,10 +14,10 @@ import kotlinx.coroutines.launch
  * 콘솔로 달리면 진짜 내비처럼 상황이 다가온다.
  *
  * 같은 차속이 이어지면 차속 이벤트가 오지 않을 수 있어(Android 14 variable update rate),
- * [tickMs]마다 마지막 차속으로 거리를 갱신한다. [clock]은 스냅샷 timestamp와 같은 시계여야 한다.
+ * [tickMs]마다 마지막 차속으로 거리를 갱신한다. [clock]은 차량 움직임 timestamp와 같은 시계여야 한다.
  */
 class FakeRouteNaviEventSource(
-    private val snapshots: Flow<DrivingSnapshot>,
+    private val motions: Flow<VehicleMotion>,
     private val clock: () -> Long,
     private val route: List<RoutePoint> = DEFAULT_ROUTE,
     private val tickMs: Long = 1_000,
@@ -45,7 +44,7 @@ class FakeRouteNaviEventSource(
 
     override val events: Flow<NaviEvent> = channelFlow {
         launch {
-            snapshots.collect { s -> tracker.onSnapshot(s).forEach { send(it) } }
+            motions.collect { s -> tracker.onMotion(s).forEach { send(it) } }
         }
         while (true) {
             delay(tickMs)
@@ -53,7 +52,7 @@ class FakeRouteNaviEventSource(
         }
     }
 
-    /** 경로 위치 계산. 스냅샷 수집과 타이머가 동시에 부르므로 동기화한다. */
+    /** 경로 위치 계산. 차량 움직임 수집과 타이머가 동시에 부르므로 동기화한다. */
     internal inner class Tracker {
         private var active = false
         private var odometerM = 0.0
@@ -62,7 +61,7 @@ class FakeRouteNaviEventSource(
         private val lastSent = mutableMapOf<String, Int>()
 
         @Synchronized
-        fun onSnapshot(s: DrivingSnapshot): List<NaviEvent> {
+        fun onMotion(s: VehicleMotion): List<NaviEvent> {
             if (s.gear == GearPosition.UNKNOWN) return emptyList()
             if (!active) {
                 if (s.gear == GearPosition.PARK) return emptyList()

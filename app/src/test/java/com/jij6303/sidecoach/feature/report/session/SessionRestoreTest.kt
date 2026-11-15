@@ -112,7 +112,7 @@ class SessionRestoreTest {
     fun `시연 경로 위치를 이어가고 다운타임은 이동으로 치지 않는다`() {
         var now = 0L
         val route = FakeRouteNaviEventSource(
-            snapshots = emptyFlow(),
+            motions = emptyFlow(),
             clock = { now },
             route = listOf(FakeRouteNaviEventSource.RoutePoint("r", SituationType.ROUNDABOUT, 400f)),
         )
