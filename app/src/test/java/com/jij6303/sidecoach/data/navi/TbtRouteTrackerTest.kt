@@ -98,16 +98,6 @@ class TbtRouteTrackerTest {
     }
 
     @Test
-    fun `주의 지점은 받은 위치 기준으로 남은 거리를 줄여간다`() {
-        tracker.onSnapshot(snap(0, 36f))
-        val first = tracker.putCaution("c1", SituationType.SCHOOL_ZONE, 400.0, 0).situations().single()
-        assertEquals(400f, first.distanceM)
-        val later = tracker.advance(20_000).situations().single()
-        assertEquals("c1", later.key)
-        assertEquals(200f, later.distanceM, 0.01f)
-    }
-
-    @Test
     fun `경로가 끝나면 아무것도 보내지 않는다`() {
         tracker.setRoute(measured, 0)
         tracker.clear()

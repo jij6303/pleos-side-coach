@@ -59,19 +59,20 @@ object MessageCatalog {
         SituationType.SCHOOL_ZONE -> "곧 어린이보호구역이에요. 시속 30 이하로, 횡단보도 앞에서는 일단 멈춰요."
         SituationType.UNPROTECTED_LEFT -> "곧 비보호좌회전이에요. 맞은편 직진 차가 지나간 뒤에 돌아요."
         SituationType.MERGE -> "곧 합류해요. 깜빡이 켜고 가속 차로에서 속도를 맞춰요."
-        // 차로 사전 안내 (#65). 지금 몇 차로인지 모르므로 "어느 쪽 차로로" 옮길지만 말한다
-        SituationType.LANE_LEFT_TURN -> "곧 좌회전이에요. 깜빡이 켜고 미리 왼쪽 끝 차로로 옮겨두세요."
-        SituationType.LANE_RIGHT_TURN -> "곧 우회전이에요. 깜빡이 켜고 미리 오른쪽 끝 차로로 옮겨두세요."
-        SituationType.LANE_UTURN -> "곧 유턴이에요. 미리 1차로로 옮기고 유턴 표지를 확인해요."
-        SituationType.LANE_KEEP_LEFT -> "곧 왼쪽 길로 가요. 깜빡이 켜고 미리 왼쪽 차로로 옮겨두세요."
-        SituationType.LANE_KEEP_RIGHT -> "곧 오른쪽 길로 가요. 깜빡이 켜고 미리 오른쪽 차로로 옮겨두세요."
-        SituationType.LANE_STRAIGHT -> "곧 직진이에요. 1차로는 좌회전 전용일 수 있으니 2차로 이상에 있어요."
-        // 연속 회전 (#67). 앞 회전 직전에, 지나자마자 옮길 차로를 미리 말한다
-        SituationType.CHAIN_LEFT_TURN -> "그다음 바로 좌회전이에요. 지나자마자 왼쪽 차로로 가세요."
-        SituationType.CHAIN_RIGHT_TURN -> "그다음 바로 우회전이에요. 지나자마자 오른쪽 차로로 가세요."
-        SituationType.CHAIN_UTURN -> "그다음 바로 유턴이에요. 지나자마자 1차로로 가세요."
-        SituationType.CHAIN_KEEP_LEFT -> "그다음 바로 왼쪽 길이에요. 지나자마자 왼쪽 차로로 가세요."
-        SituationType.CHAIN_KEEP_RIGHT -> "그다음 바로 오른쪽 길이에요. 지나자마자 오른쪽 차로로 가세요."
+        // 차로 사전 안내 (#65). 지금 몇 차로인지 모르므로 "어느 쪽 차로로" 옮길지만 말한다.
+        // 회전 예고("곧 좌회전이에요")는 내비가 하므로 빼고 행동 코칭으로 시작한다 (#71)
+        SituationType.LANE_LEFT_TURN -> "좌회전 준비해요. 깜빡이 먼저 켜고 왼쪽 끝 차로로 미리 옮겨요."
+        SituationType.LANE_RIGHT_TURN -> "우회전 준비해요. 깜빡이 먼저 켜고 오른쪽 끝 차로로 미리 옮겨요."
+        SituationType.LANE_UTURN -> "유턴 준비해요. 깜빡이 먼저 켜고 1차로로 미리 옮겨요."
+        SituationType.LANE_KEEP_LEFT -> "왼쪽 길로 빠질 준비해요. 깜빡이 먼저 켜고 왼쪽 차로로 미리 옮겨요."
+        SituationType.LANE_KEEP_RIGHT -> "오른쪽 길로 빠질 준비해요. 깜빡이 먼저 켜고 오른쪽 차로로 미리 옮겨요."
+        SituationType.LANE_STRAIGHT -> "1차로는 좌회전 전용일 수 있어요. 직진하려면 2차로 이상에 있어요."
+        // 연속 회전 (#67). 앞 회전 직전에, 돌 때 들어갈 차로를 먼저 말한다 (#71: 다음 회전 예고는 내비 몫)
+        SituationType.CHAIN_LEFT_TURN -> "이번에 돌 때 왼쪽 차로로 들어가요. 바로 좌회전이 이어져요."
+        SituationType.CHAIN_RIGHT_TURN -> "이번에 돌 때 오른쪽 차로로 들어가요. 바로 우회전이 이어져요."
+        SituationType.CHAIN_UTURN -> "이번에 돌 때 1차로로 들어가요. 바로 유턴이 이어져요."
+        SituationType.CHAIN_KEEP_LEFT -> "이번에 돌 때 왼쪽 차로로 들어가요. 바로 왼쪽 길로 빠져요."
+        SituationType.CHAIN_KEEP_RIGHT -> "이번에 돌 때 오른쪽 차로로 들어가요. 바로 오른쪽 길로 빠져요."
     }
 
     /**
@@ -82,16 +83,16 @@ object MessageCatalog {
         SituationType.LANE_LEFT_TURN -> toFirstLane("좌회전", lane)
         SituationType.LANE_UTURN -> toFirstLane("유턴", lane)
         SituationType.LANE_STRAIGHT -> when (lane) {
-            1 -> "곧 직진이에요. 1차로는 좌회전 전용일 수 있으니 2차로로 옮기세요."
-            else -> "곧 직진이에요. 지금 차로 그대로 가요."
+            1 -> "지금 1차로예요. 좌회전 전용일 수 있으니 직진하려면 2차로로 옮겨요."
+            else -> "지금 차로 그대로 직진해요."
         }
-        SituationType.LANE_KEEP_LEFT -> if (lane == 1) "곧 왼쪽 길로 가요. 지금 1차로 그대로 가요." else null
+        SituationType.LANE_KEEP_LEFT -> if (lane == 1) "지금 1차로예요. 왼쪽 길로 가려면 그대로 가요." else null
         else -> null
     }
 
     private fun toFirstLane(turn: String, lane: Int): String? = when (lane) {
-        1 -> "곧 ${turn}이에요. 지금 1차로 그대로 가요."
-        in 2..4 -> "곧 ${turn}이에요. 지금 ${lane}차로니까 깜빡이 켜고 1차로로 옮기세요."
+        1 -> "지금 1차로예요. ${turn}하려면 그대로 가요."
+        in 2..4 -> "지금 ${lane}차로예요. ${turn}하려면 깜빡이 켜고 1차로로 옮겨요."
         else -> null
     }
 

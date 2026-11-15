@@ -2,7 +2,6 @@ package com.jij6303.sidecoach.data.navi
 
 import ai.pleos.playground.navi.constants.NaviErrorCode
 import ai.pleos.playground.navi.constants.NavigationStatus
-import ai.pleos.playground.navi.data.CautionPoint
 import ai.pleos.playground.navi.data.DestinationArrivedInfo
 import ai.pleos.playground.navi.data.TBTInfo
 import ai.pleos.playground.navi.helper.NaviHelper
@@ -25,6 +24,7 @@ import kotlinx.coroutines.launch
  * - 경로 안내 중에 늦게 등록하면 목록이 다시 오지 않아 `getTBTInfo()`로 조회한다. 이 호출은
  *   `pleos.car.permission.NAVI_ROUTE`가 필요하고, 없으면 `SecurityException` → 다음 경로 시작부터 리스너로만 동작한다.
  * - 남은 거리는 [TbtRouteTracker]가 차속 적분으로 계산한다.
+ * - 주의 지점(`onCautionPointInfo`: 어린이보호구역·과속방지턱 등)은 쓰지 않는다. 내비가 이미 알리므로 겹친다 (#71).
  */
 class PleosNaviEventSource(
     context: Context,
@@ -59,13 +59,6 @@ class PleosNaviEventSource(
                 if (segments.isEmpty()) return endRoute("empty TBT")
                 emit(tracker.setRoute(segments, clock()))
                 _routeActive.value = true
-            }
-
-            override fun onCautionPointInfo(cautionPointList: List<CautionPoint>) {
-                for (c in cautionPointList) {
-                    val type = TbtMapping.caution(c.type.name) ?: continue
-                    emit(tracker.putCaution("caution-${c.id}", type, c.remainDistance.toDouble(), clock()))
-                }
             }
 
             override fun onNavigationStatus(status: NavigationStatus) {

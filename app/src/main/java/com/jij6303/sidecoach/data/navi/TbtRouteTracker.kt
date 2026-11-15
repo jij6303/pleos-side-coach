@@ -4,7 +4,7 @@ import com.jij6303.sidecoach.domain.DrivingSnapshot
 import com.jij6303.sidecoach.domain.situation.SituationType
 
 /**
- * 내비 TBT 목록·주의 지점 → 지점까지 남은 거리 (#65).
+ * 내비 TBT 목록 → 회전 지점까지 남은 거리 (#65).
  *
  * 실측(#63): `TBTInfo.distance`는 남은 거리가 아니라 **이전 지점부터의 구간 거리**이고, 경로 시작 때 전체 목록이 한 번 온다.
  * 그래서 구간 거리를 누적해 지점 위치를 만들고, 차속을 적분한 이동 거리로 남은 거리를 계산한다(시연 경로와 같은 방식).
@@ -12,7 +12,6 @@ import com.jij6303.sidecoach.domain.situation.SituationType
  * - 회전은 안내할 수 있는 지점([TbtMapping]) 중 **다음 지점 하나만** 알린다. 뒤 지점을 먼저 말해 헷갈리지 않게.
  * - 단, 다음 회전 바로 뒤([chainGapM] 안)에 또 회전이 있으면 그 회전을 연속 회전([TbtMapping.chain])으로,
  *   **다음 회전까지 남은 거리**를 붙여 함께 알린다(#67). 지나고 나면 차로 안내 구간(200m)보다 가까워 놓치기 때문.
- * - 주의 지점(`CautionPoint.remainDistance`)은 받은 순간 위치에 더해 지점 위치로 바꾼다. 같은 id가 다시 오면 위치를 고친다.
  * - 주행 중 내비가 목록·거리를 갱신하는지는 에뮬레이터에서 확인하지 못했다(❓, dev-architecture 0.1).
  *
  * 스냅샷 수집·타이머·SDK 콜백이 동시에 부르므로 동기화한다. 시각은 스냅샷 timestamp와 같은 시계여야 한다.
@@ -32,7 +31,6 @@ class TbtRouteTracker(
 
     private var segments: List<Segment> = emptyList()
     private var turns: List<Point> = emptyList()
-    private val cautions = mutableMapOf<String, Point>()
     private var odometerM = 0.0
     private var lastTs = 0L
     private var started = false
@@ -57,20 +55,11 @@ class TbtRouteTracker(
         return out + emitNear(nowMs)
     }
 
-    /** 주의 지점 하나. 지금 위치에서 [remainM] 앞. */
-    @Synchronized
-    fun putCaution(key: String, type: SituationType, remainM: Double, nowMs: Long): List<NaviEvent> {
-        val out = advance(nowMs)
-        cautions[key] = Point(key, type, odometerM + remainM)
-        return out + emitNear(nowMs)
-    }
-
     /** 경로 안내가 끝났다(취소·도착). */
     @Synchronized
     fun clear() {
         segments = emptyList()
         turns = emptyList()
-        cautions.clear()
         lastSent.clear()
     }
 
@@ -91,13 +80,12 @@ class TbtRouteTracker(
     }
 
     private fun emitNear(nowMs: Long): List<NaviEvent> {
-        cautions.values.removeAll { it.atM < odometerM }
         val nextIndex = turns.indexOfFirst { it.atM >= odometerM }
         val nextTurn = turns.getOrNull(nextIndex)
         // 연속 회전: 위치는 앞 회전(nextTurn) 자리로 둬서 남은 거리가 앞 회전 기준이 되게 한다
         val chained = turns.getOrNull(nextIndex + 1)?.takeIf { nextTurn != null && it.atM - nextTurn.atM <= chainGapM }
             ?.let { after -> TbtMapping.chain(after.type)?.let { Point("${after.key}-chain", it, nextTurn!!.atM) } }
-        return (listOfNotNull(nextTurn, chained) + cautions.values).mapNotNull { p ->
+        return listOfNotNull(nextTurn, chained).mapNotNull { p ->
             val remaining = (p.atM - odometerM).toFloat()
             if (remaining > horizonM) return@mapNotNull null
             val bucket = (remaining / stepM).toInt()
