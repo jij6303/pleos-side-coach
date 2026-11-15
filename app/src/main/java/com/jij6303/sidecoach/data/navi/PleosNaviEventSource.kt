@@ -7,7 +7,7 @@ import ai.pleos.playground.navi.data.TBTInfo
 import ai.pleos.playground.navi.helper.NaviHelper
 import ai.pleos.playground.navi.helper.listener.NaviHelperEventListener
 import android.content.Context
-import com.jij6303.sidecoach.domain.DrivingSnapshot
+import com.jij6303.sidecoach.state.DrivingSnapshot
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow

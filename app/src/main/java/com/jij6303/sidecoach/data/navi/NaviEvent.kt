@@ -1,6 +1,5 @@
 package com.jij6303.sidecoach.data.navi
 
-import com.jij6303.sidecoach.domain.situation.SituationType
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 

@@ -1,7 +1,6 @@
 package com.jij6303.sidecoach.data.navi
 
-import com.jij6303.sidecoach.domain.DrivingSnapshot
-import com.jij6303.sidecoach.domain.situation.SituationType
+import com.jij6303.sidecoach.state.DrivingSnapshot
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
