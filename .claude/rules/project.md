@@ -3,8 +3,17 @@
 초보운전자용 Pleos Connect(AAOS) 실시간 음성 코칭 앱. 현대차그룹 차량용 앱 공모전 출품작 (1차 마감 2026-11-15).
 
 ### 반드시 먼저 읽을 문서
-- docs/dev-architecture.md : 아키텍처, API 명세, 판정 로직, 매니페스트, 테스트 계획. 특히 "0.1 에뮬레이터 실측 결과"가 최우선 기준
-- docs/pleos-dev-guide-summary.md : Pleos 플랫폼 규칙 요약
+- .claude/reference/dev-architecture.md : 아키텍처, API 명세, 판정 로직, 매니페스트, 테스트 계획. 특히 "0.1 에뮬레이터 실측 결과"가 최우선 기준
+- .claude/reference/pleos-dev-guide-summary.md : Pleos 플랫폼 규칙 요약
+- docs/architecture.md : 패키지별 책임. 새 코드는 이 책임 구분에 맞는 패키지에 둔다
+
+### 문서 규칙
+- `docs/`와 `README.md`는 **사람용**이다. 사용자가 직접 검토한 내용만 둔다
+  - 지금 상태만 쓴다. "~는 뺐다", "~에서 바뀌었다", 이슈 번호(#N), 취소선 같은 변경 이력은 쓰지 않는다
+  - 사람용 문서를 고칠 때는 고칠 내용을 먼저 보여주고 승인받는다
+- `.claude/reference/`는 **Claude용**이다. 실측값, API 시그니처, 작업 기록, 이력은 여기에 쓴다
+  - 작업 일지는 `.claude/reference/PROJECT_LOG.md`
+- 작업 전에 구현 방법을 먼저 설명하고 사용자가 이해·승인한 뒤 진행한다 (`.claude/reference/feedback.md` 6장)
 
 ### 고정값
 - 패키지명: com.jij6303.sidecoach (schema.json, Pleos 프로젝트와 동일해야 함)
