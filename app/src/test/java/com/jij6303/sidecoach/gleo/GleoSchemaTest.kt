@@ -29,10 +29,21 @@ class GleoSchemaTest {
     @Test
     fun `선언한 액션은 모두 코드에서 처리한다`() {
         assertEquals(
-            setOf(GleoContract.START_DRIVING_COACH, GleoContract.ASK_CAR_TIP),
+            setOf(GleoContract.START_DRIVING_COACH, GleoContract.ASK_CAR_TIP, GleoContract.SET_CURRENT_LANE),
             functions.map { it.getString("name") }.toSet(),
         )
         functions.forEach { assertEquals("activity", it.getString("component")) }
+    }
+
+    @Test
+    fun `차로 번호 enum은 앱 입력 범위와 같다`() {
+        val f = functions.first { it.getString("name") == GleoContract.SET_CURRENT_LANE }
+        val enum = f.getJSONObject("parameters").getJSONObject("properties")
+            .getJSONObject(GleoContract.PARAM_LANE_NUMBER).getJSONArray("enum")
+        assertEquals(
+            com.jij6303.sidecoach.domain.lane.LaneInput.LANES.toList(),
+            (0 until enum.length()).map { enum.getInt(it) },
+        )
     }
 
     @Test

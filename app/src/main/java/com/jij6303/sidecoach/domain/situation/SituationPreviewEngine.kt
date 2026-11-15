@@ -15,11 +15,12 @@ class SituationPreviewEngine(
 ) {
     private val announced = mutableMapOf<String, Long>()
 
-    fun onEvent(e: NaviEvent): CoachMessage? = when (e) {
-        is NaviEvent.Situation -> onSituation(e)
+    /** [lane]은 운전자가 알려준 지금 차로(#69). 모르면 null. */
+    fun onEvent(e: NaviEvent, lane: Int? = null): CoachMessage? = when (e) {
+        is NaviEvent.Situation -> onSituation(e, lane)
     }
 
-    private fun onSituation(e: NaviEvent.Situation): CoachMessage? {
+    private fun onSituation(e: NaviEvent.Situation, lane: Int?): CoachMessage? {
         announced.entries.removeAll { e.timestampMs - it.value > repeatTtlMs }
         if (e.key in announced) return null
         // 가까운 쪽 경계 안에서 처음 알게 된 지점은 늦었으므로 말하지 않는다 (운전에 집중할 때)
@@ -27,7 +28,7 @@ class SituationPreviewEngine(
         announced[e.key] = e.timestampMs
         return CoachMessage(
             type = CoachType.PREVIEW,
-            text = MessageCatalog.preview(e.type),
+            text = MessageCatalog.preview(e.type, lane),
             createdAtMs = e.timestampMs,
             dedupeKey = "preview-${e.key}",
         )

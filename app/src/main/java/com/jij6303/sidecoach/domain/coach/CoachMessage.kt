@@ -27,6 +27,9 @@ enum class CoachType(val priority: Int, val high: Boolean) {
 
     /** 차량 기능 도움말 음성. 중재자를 거치지 않는다. */
     TIP(priority = 0, high = false),
+
+    /** 운전자가 알려준 차로 확인 음성 (#69). 중재자를 거치지 않는다. */
+    LANE(priority = 0, high = false),
 }
 
 data class CoachMessage(
@@ -47,8 +50,11 @@ object MessageCatalog {
     fun turnSpeed(): String = "돌 때는 속도를 줄여요. 천천히요."
     fun gearShiftMoving(): String = "기어는 완전히 멈춘 뒤에 바꿔요."
 
-    /** 상황 예고. 거리는 말하지 않는다(녹음 클립으로 재생하기 위해 문구를 고정). */
-    fun preview(type: SituationType): String = when (type) {
+    /**
+     * 상황 예고. 거리는 말하지 않는다(녹음 클립으로 재생하기 위해 문구를 고정).
+     * [lane]은 운전자가 알려준 지금 차로(#69). 알면 단정해서 말하고, 모르거나 차로별 문구가 없으면 일반 안내.
+     */
+    fun preview(type: SituationType, lane: Int? = null): String = lane?.let { laneAware(type, it) } ?: when (type) {
         SituationType.ROUNDABOUT -> "곧 회전교차로예요. 돌고 있는 차가 우선이니 왼쪽을 보고 천천히 들어가요."
         SituationType.SCHOOL_ZONE -> "곧 어린이보호구역이에요. 시속 30 이하로, 횡단보도 앞에서는 일단 멈춰요."
         SituationType.UNPROTECTED_LEFT -> "곧 비보호좌회전이에요. 맞은편 직진 차가 지나간 뒤에 돌아요."
@@ -67,6 +73,37 @@ object MessageCatalog {
         SituationType.CHAIN_KEEP_LEFT -> "그다음 바로 왼쪽 길이에요. 지나자마자 왼쪽 차로로 가세요."
         SituationType.CHAIN_KEEP_RIGHT -> "그다음 바로 오른쪽 길이에요. 지나자마자 오른쪽 차로로 가세요."
     }
+
+    /**
+     * 지금 차로를 아는 경우의 차로 안내 (#69). 문구가 없으면 null.
+     * 우회전·오른쪽 길은 전체 차로 수를 몰라 "몇 차로로" 옮길지 말할 수 없어 일반 안내를 쓴다.
+     */
+    private fun laneAware(type: SituationType, lane: Int): String? = when (type) {
+        SituationType.LANE_LEFT_TURN -> toFirstLane("좌회전", lane)
+        SituationType.LANE_UTURN -> toFirstLane("유턴", lane)
+        SituationType.LANE_STRAIGHT -> when (lane) {
+            1 -> "곧 직진이에요. 1차로는 좌회전 전용일 수 있으니 2차로로 옮기세요."
+            else -> "곧 직진이에요. 지금 차로 그대로 가요."
+        }
+        SituationType.LANE_KEEP_LEFT -> if (lane == 1) "곧 왼쪽 길로 가요. 지금 1차로 그대로 가요." else null
+        else -> null
+    }
+
+    private fun toFirstLane(turn: String, lane: Int): String? = when (lane) {
+        1 -> "곧 ${turn}이에요. 지금 1차로 그대로 가요."
+        in 2..4 -> "곧 ${turn}이에요. 지금 ${lane}차로니까 깜빡이 켜고 1차로로 옮기세요."
+        else -> null
+    }
+
+    /** 운전자가 알려준 차로를 기억했다는 확인 (#69). */
+    fun laneSet(lane: Int): String = "${lane}차로로 기억할게요."
+
+    /** 차로 안내 문구 전체 (클립 등록·테스트용). */
+    fun laneAwarePhrases(): List<String> = buildList {
+        for (type in listOf(SituationType.LANE_LEFT_TURN, SituationType.LANE_UTURN, SituationType.LANE_STRAIGHT, SituationType.LANE_KEEP_LEFT)) {
+            for (lane in 1..4) laneAware(type, lane)?.let(::add)
+        }
+    }.distinct()
 
     /** 성적표가 뜰 때 한 문장. */
     fun report(grade: Grade): String = when (grade) {

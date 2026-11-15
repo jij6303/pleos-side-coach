@@ -15,11 +15,34 @@ class GleoActionHandler(
     private val speakTip: (CarTip) -> Unit = {},
     /** 정차 중일 때 도움말 화면을 연다. */
     private val openTip: (CarTip) -> Unit = {},
+    /** 운전자가 알려준 차로를 기억하고 음성으로 확인한다(#69). 범위 밖이면 false. */
+    private val setLane: (Int) -> Boolean = { false },
 ) {
     suspend fun handle(action: String?, params: Map<String, String>): GleoResponse? = when (action) {
         GleoContract.START_DRIVING_COACH -> startCoach()
         GleoContract.ASK_CAR_TIP -> askTip(params)
+        GleoContract.SET_CURRENT_LANE -> setCurrentLane(params)
         else -> null
+    }
+
+    private fun setCurrentLane(params: Map<String, String>): GleoResponse {
+        // Gleo가 숫자를 2.0처럼 보낼 수도 있어 소수도 받는다 (💭)
+        val lane = params[GleoContract.PARAM_LANE_NUMBER]?.toDoubleOrNull()?.takeIf { it % 1.0 == 0.0 }?.toInt()
+        if (lane == null || !setLane(lane)) {
+            return GleoResponse(
+                functionName = GleoContract.SET_CURRENT_LANE,
+                status = GleoResponse.Status.FAIL,
+                message = "Please tell me a lane number from 1 to 4, counting from the leftmost lane.",
+            )
+        }
+        // 앱이 "N차로로 기억할게요"라고 직접 말하므로 Gleo는 읽지 않게 한다 (이중 낭독 방지)
+        return GleoResponse(
+            functionName = GleoContract.SET_CURRENT_LANE,
+            status = GleoResponse.Status.SUCCESS,
+            message = "The app will remember that you are in lane $lane.",
+            mode = GleoResponse.Mode.SILENT,
+            data = """[{"laneNumber":$lane}]""",
+        )
     }
 
     private fun startCoach(): GleoResponse {

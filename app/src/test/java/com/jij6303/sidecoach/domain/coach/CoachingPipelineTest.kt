@@ -114,6 +114,21 @@ class CoachingPipelineTest {
     }
 
     @Test
+    fun `지금 차로를 알면 차선 변경으로 따라가 단정해서 안내한다`() {
+        pipeline.lane.set(1, 0)
+        laneChange(0, TurnSignalState.RIGHT) // 조향이 먼저 오른쪽(−) → 1차로에서 2차로
+        assertEquals(2, pipeline.lane.current(5_000))
+        val m = pipeline.processNavi(NaviEvent.Situation("t", SituationType.LANE_LEFT_TURN, 450f, 10_000))
+        assertEquals("곧 좌회전이에요. 지금 2차로니까 깜빡이 켜고 1차로로 옮기세요.", m?.text)
+    }
+
+    @Test
+    fun `차로를 모르면 일반 안내`() {
+        val m = pipeline.processNavi(NaviEvent.Situation("t", SituationType.LANE_LEFT_TURN, 450f, 0))
+        assertEquals(MessageCatalog.preview(SituationType.LANE_LEFT_TURN), m?.text)
+    }
+
+    @Test
     fun `T7 내비 이벤트가 예고 구간에 들어오면 상황 예고를 말한다`() {
         assertNull(pipeline.processNavi(NaviEvent.Situation("r", SituationType.ROUNDABOUT, 350f, 0)))
         val m = pipeline.processNavi(NaviEvent.Situation("r", SituationType.ROUNDABOUT, 290f, 1_000))

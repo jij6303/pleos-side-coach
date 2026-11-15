@@ -116,6 +116,7 @@ private fun lookOf(type: CoachType?, signal: SignalColors): CoachLook =
         CoachType.PREVIEW -> CoachLook(signal.neutral, "곧 만나요", CoachMood.CALM)
         CoachType.PARKING -> CoachLook(signal.neutral, "주차 코치", CoachMood.CALM)
         CoachType.TIP -> CoachLook(signal.neutral, "도움말", CoachMood.CALM)
+        CoachType.LANE -> CoachLook(signal.neutral, "차로 기억", CoachMood.CALM)
         null -> CoachLook(signal.neutral, "코칭 중", CoachMood.CALM)
     }
 

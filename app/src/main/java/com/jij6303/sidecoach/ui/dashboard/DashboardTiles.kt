@@ -107,6 +107,7 @@ fun CoachingCard(message: CoachMessage?, modifier: Modifier = Modifier) {
         CoachType.REPORT -> signal.praise to "성적표"
         CoachType.PARKING -> signal.neutral to "주차 코치"
         CoachType.TIP -> signal.neutral to "도움말"
+        CoachType.LANE -> signal.neutral to "차로 기억"
         null -> signal.neutral to "코칭 대기"
     }
     if (message == null) {
@@ -408,6 +409,41 @@ fun ParkingCoachTile(
             (ParkingType.entries.map { it to it.label } + (null to "끄기")).forEach { (type, label) ->
                 val click = { onSelect?.invoke(type) ?: Unit }
                 if (type == selected) {
+                    Button(onClick = click, enabled = onSelect != null, modifier = Modifier.height(56.dp)) {
+                        Text(label, style = MaterialTheme.typography.titleMedium)
+                    }
+                } else {
+                    OutlinedButton(onClick = click, enabled = onSelect != null, modifier = Modifier.height(56.dp)) {
+                        Text(label, style = MaterialTheme.typography.titleMedium)
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ───────────────────────── 지금 차로 ─────────────────────────
+
+/**
+ * 운전자가 알려주는 지금 차로 (#69). 알면 회전 전에 몇 차로로 옮길지 단정해서 안내한다.
+ * 정차 화면에서만 보인다. 주행 중에는 Gleo 음성 명령(SET_CURRENT_LANE)으로 입력한다.
+ */
+@Composable
+fun LaneTile(
+    lane: Int?,
+    onSelect: ((Int?) -> Unit)?,
+    modifier: Modifier = Modifier,
+) {
+    Tile("지금 차로", modifier) {
+        Text(
+            if (lane == null) "알려주면 회전 전에 몇 차로로 옮길지 정확히 말해요" else "${lane}차로로 기억하고 있어요",
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            ((1..4).map { it to "${it}차로" } + (null to "모름")).forEach { (value, label) ->
+                val click = { onSelect?.invoke(value) ?: Unit }
+                if (value == lane) {
                     Button(onClick = click, enabled = onSelect != null, modifier = Modifier.height(56.dp)) {
                         Text(label, style = MaterialTheme.typography.titleMedium)
                     }
