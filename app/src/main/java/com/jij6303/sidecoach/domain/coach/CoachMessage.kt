@@ -53,6 +53,13 @@ object MessageCatalog {
         SituationType.SCHOOL_ZONE -> "곧 어린이보호구역이에요. 시속 30 이하로, 횡단보도 앞에서는 일단 멈춰요."
         SituationType.UNPROTECTED_LEFT -> "곧 비보호좌회전이에요. 맞은편 직진 차가 지나간 뒤에 돌아요."
         SituationType.MERGE -> "곧 합류해요. 깜빡이 켜고 가속 차로에서 속도를 맞춰요."
+        // 차로 사전 안내 (#65). 지금 몇 차로인지 모르므로 "어느 쪽 차로로" 옮길지만 말한다
+        SituationType.LANE_LEFT_TURN -> "곧 좌회전이에요. 깜빡이 켜고 미리 왼쪽 끝 차로로 옮겨두세요."
+        SituationType.LANE_RIGHT_TURN -> "곧 우회전이에요. 깜빡이 켜고 미리 오른쪽 끝 차로로 옮겨두세요."
+        SituationType.LANE_UTURN -> "곧 유턴이에요. 미리 1차로로 옮기고 유턴 표지를 확인해요."
+        SituationType.LANE_KEEP_LEFT -> "곧 왼쪽 길로 가요. 깜빡이 켜고 미리 왼쪽 차로로 옮겨두세요."
+        SituationType.LANE_KEEP_RIGHT -> "곧 오른쪽 길로 가요. 깜빡이 켜고 미리 오른쪽 차로로 옮겨두세요."
+        SituationType.LANE_STRAIGHT -> "곧 직진이에요. 1차로는 좌회전 전용일 수 있으니 2차로 이상에 있어요."
     }
 
     /** 성적표가 뜰 때 한 문장. */

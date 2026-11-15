@@ -7,11 +7,10 @@ import com.jij6303.sidecoach.domain.coach.MessageCatalog
 
 /**
  * 내비 이벤트 → 상황 예고 (dev-architecture 4.4).
- * 남은 거리가 [maxDistanceM]~[minDistanceM] 구간일 때 한 번만 예고하고, 같은 지점은 [repeatTtlMs] 동안 다시 말하지 않는다.
+ * 남은 거리가 유형별 예고 구간([SituationType.previewFarM]~[SituationType.previewNearM])일 때 한 번만 예고하고,
+ * 같은 지점은 [repeatTtlMs] 동안 다시 말하지 않는다.
  */
 class SituationPreviewEngine(
-    private val maxDistanceM: Float = 300f,
-    private val minDistanceM: Float = 150f,
     private val repeatTtlMs: Long = 10 * 60_000L,
 ) {
     private val announced = mutableMapOf<String, Long>()
@@ -23,8 +22,8 @@ class SituationPreviewEngine(
     private fun onSituation(e: NaviEvent.Situation): CoachMessage? {
         announced.entries.removeAll { e.timestampMs - it.value > repeatTtlMs }
         if (e.key in announced) return null
-        // 150m 안쪽에서 처음 알게 된 지점은 늦었으므로 말하지 않는다 (운전에 집중할 때)
-        if (e.distanceM > maxDistanceM || e.distanceM < minDistanceM) return null
+        // 가까운 쪽 경계 안에서 처음 알게 된 지점은 늦었으므로 말하지 않는다 (운전에 집중할 때)
+        if (e.distanceM > e.type.previewFarM || e.distanceM < e.type.previewNearM) return null
         announced[e.key] = e.timestampMs
         return CoachMessage(
             type = CoachType.PREVIEW,

@@ -118,6 +118,7 @@ class MainActivity : ComponentActivity() {
                 val stats by pipeline.recorder.stats.collectAsStateWithLifecycle()
                 val uiMode by ServiceLocator.uiMode.collectAsStateWithLifecycle()
                 val report by pipeline.lastReport.collectAsStateWithLifecycle()
+                val demoRoute by ServiceLocator.naviEventSource.isDemo.collectAsStateWithLifecycle()
                 // 성적표는 정차(P단, 규제 없음)일 때만 보여준다 (dev-architecture 5.2)
                 val shownReport = report?.takeIf { uiMode == UiMode.PARKED_FULL }
                 closeReport.isEnabled = shownReport != null
@@ -165,7 +166,7 @@ class MainActivity : ComponentActivity() {
                             lastMessage = lastMessage,
                             stats = stats,
                             usingFake = ServiceLocator.useFakeVehicle,
-                            demoRoute = ServiceLocator.naviEventSource.isDemo,
+                            demoRoute = demoRoute,
                             modifier = Modifier.padding(innerPadding),
                             onOpenTips = if (uiMode == UiMode.PARKED_FULL) {
                                 { openTip.value = CarTip.entries.first() }
